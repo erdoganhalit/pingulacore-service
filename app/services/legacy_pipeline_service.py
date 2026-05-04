@@ -164,6 +164,158 @@ def list_yaml_files(kind: LegacyKind, settings: Settings | None = None) -> list[
     return files
 
 
+@dataclass
+class _ExtractionIssue:
+    type: Literal["parse", "schema", "semantic"]
+    message: str
+    location: str | None = None
+
+
+@dataclass
+class _ExtractionOutcome:
+    filename: str
+    yaml_path: str | None
+    errors: list[_ExtractionIssue]
+    warnings: list[_ExtractionIssue]
+
+
+def _check_kind_schema(kind: LegacyKind, data: dict[str, Any]) -> list[_ExtractionIssue]:
+    errors: list[_ExtractionIssue] = []
+    if kind == "geometry":
+        if not isinstance(data.get("meta"), dict) or not isinstance(data.get("context"), dict):
+            errors.append(_ExtractionIssue(
+                type="schema",
+                message="Geometri YAML'ı `meta` ve `context` bloklarını içermeli",
+            ))
+    elif kind == "turkce":
+        has_generation_entry = any(k in data for k in ("template", "generation_plan", "context_generation_plan"))
+        has_topic_source = any(k in data for k in ("topic", "topics_file"))
+        if not (has_generation_entry and has_topic_source):
+            errors.append(_ExtractionIssue(
+                type="schema",
+                message="Türkçe YAML'ı `template`/`generation_plan`/`context_generation_plan` ve `topic`/`topics_file` içermeli",
+            ))
+    return errors
+
+
+def _semantic_check(kind: LegacyKind, target: Path) -> list[_ExtractionIssue]:
+    """Run kind-specific semantic checks on a saved YAML.
+
+    Failure here is reported as a non-fatal warning — the file is already valid YAML
+    and matches the structural schema; semantic problems may surface only at run time.
+    """
+    issues: list[_ExtractionIssue] = []
+    if kind == "geometry":
+        try:
+            from legacy_app.geometri.pomodoro.yaml_loader import load_and_parse_template
+            load_and_parse_template(str(target))
+        except Exception as exc:
+            issues.append(_ExtractionIssue(type="semantic", message=str(exc)))
+    return issues
+
+
+def _unique_target(uploads_root: Path, safe_name: str) -> Path:
+    target = uploads_root / safe_name
+    if not target.exists():
+        return target
+    stem = Path(safe_name).stem
+    suffix = Path(safe_name).suffix
+    n = 1
+    while True:
+        candidate = uploads_root / f"{stem}__{n}{suffix}"
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
+def extract_uploaded_yaml(
+    kind: LegacyKind,
+    *,
+    filename: str,
+    content: bytes,
+    settings: Settings | None = None,
+    overwrite: bool = True,
+) -> _ExtractionOutcome:
+    """Validate + persist a single uploaded YAML, collecting errors instead of raising.
+
+    Runs three layers: parse (UTF-8/YAML/extension), schema (kind-specific structure),
+    semantic (kind-specific deeper load). Parse + schema failures prevent persistence;
+    semantic failures are warnings (file is still saved).
+    """
+    s = settings or get_settings()
+    errors: list[_ExtractionIssue] = []
+    warnings: list[_ExtractionIssue] = []
+
+    if kind not in LEGACY_PIPELINES:
+        errors.append(_ExtractionIssue(type="parse", message=f"Bilinmeyen pipeline türü: {kind}"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    if len(content) > 2 * 1024 * 1024:
+        errors.append(_ExtractionIssue(type="parse", message="YAML dosyası 2 MB sınırını aşıyor"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    safe_name = Path(filename).name
+    if not safe_name or safe_name in {".", ".."}:
+        errors.append(_ExtractionIssue(type="parse", message="Geçersiz dosya adı"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+    if Path(safe_name).suffix.lower() not in {".yaml", ".yml"}:
+        errors.append(_ExtractionIssue(type="parse", message="Yalnızca .yaml/.yml uzantıları kabul edilir"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        errors.append(_ExtractionIssue(type="parse", message=f"YAML UTF-8 değil: {exc}"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    try:
+        data = _yaml.safe_load(text)
+    except _yaml.YAMLError as exc:
+        errors.append(_ExtractionIssue(type="parse", message=f"YAML parse hatası: {exc}"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    if not isinstance(data, dict):
+        errors.append(_ExtractionIssue(type="schema", message="YAML kök öğesi sözlük olmalı"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    schema_errors = _check_kind_schema(kind, data)
+    if schema_errors:
+        errors.extend(schema_errors)
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    uploads_root = _uploads_root(kind, s)
+    uploads_root.mkdir(parents=True, exist_ok=True)
+    target = uploads_root / safe_name if overwrite else _unique_target(uploads_root, safe_name)
+    target.write_text(text, encoding="utf-8")
+
+    warnings.extend(_semantic_check(kind, target))
+    rel = target.relative_to(uploads_root).as_posix()
+    return _ExtractionOutcome(
+        filename=filename,
+        yaml_path=UPLOAD_PREFIX + rel,
+        errors=errors,
+        warnings=warnings,
+    )
+
+
+def extract_uploaded_yamls(
+    kind: LegacyKind,
+    *,
+    files: list[tuple[str, bytes]],
+    settings: Settings | None = None,
+) -> list[_ExtractionOutcome]:
+    """Run extract_uploaded_yaml for each file; partial success — never raises per-file."""
+    s = settings or get_settings()
+    outcomes: list[_ExtractionOutcome] = []
+    for filename, content in files:
+        outcomes.append(
+            extract_uploaded_yaml(
+                kind, filename=filename, content=content, settings=s, overwrite=False
+            )
+        )
+    return outcomes
+
+
 def save_uploaded_yaml(
     kind: LegacyKind,
     *,
@@ -171,51 +323,17 @@ def save_uploaded_yaml(
     content: bytes,
     settings: Settings | None = None,
 ) -> str:
-    """Validate + persist an uploaded YAML under the kind's uploads dir.
+    """Single-file legacy upload; raises ValueError on the first error.
 
-    Returns the path token (`uploads/<filename>`) usable by `run()`.
+    Kept for backwards compatibility with the existing single-upload endpoint.
     """
-    s = settings or get_settings()
-    if kind not in LEGACY_PIPELINES:
-        raise ValueError(f"Bilinmeyen pipeline türü: {kind}")
-    if len(content) > 2 * 1024 * 1024:
-        raise ValueError("YAML dosyası 2 MB sınırını aşıyor")
-
-    safe_name = Path(filename).name
-    if not safe_name or safe_name in {".", ".."}:
-        raise ValueError("Geçersiz dosya adı")
-    if Path(safe_name).suffix.lower() not in {".yaml", ".yml"}:
-        raise ValueError("Yalnızca .yaml/.yml uzantıları kabul edilir")
-
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ValueError(f"YAML UTF-8 değil: {exc}") from exc
-    try:
-        data = _yaml.safe_load(text)
-    except _yaml.YAMLError as exc:
-        raise ValueError(f"YAML parse hatası: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValueError("YAML kök öğesi sözlük olmalı")
-
-    uploads_root = _uploads_root(kind, s)
-    uploads_root.mkdir(parents=True, exist_ok=True)
-    target = uploads_root / safe_name
-
-    # Mark with a kind-specific structural check so we don't accept arbitrary YAMLs
-    # that the pipeline can't run.
-    if kind == "geometry" and not (isinstance(data.get("meta"), dict) and isinstance(data.get("context"), dict)):
-        raise ValueError("Geometri YAML'ı `meta` ve `context` bloklarını içermeli")
-    if kind == "turkce":
-        has_generation_entry = any(k in data for k in ("template", "generation_plan", "context_generation_plan"))
-        has_topic_source = any(k in data for k in ("topic", "topics_file"))
-        if not (has_generation_entry and has_topic_source):
-            raise ValueError(
-                "Türkçe YAML'ı `template`/`generation_plan`/`context_generation_plan` ve `topic`/`topics_file` içermeli"
-            )
-
-    target.write_text(text, encoding="utf-8")
-    return UPLOAD_PREFIX + safe_name
+    outcome = extract_uploaded_yaml(
+        kind, filename=filename, content=content, settings=settings, overwrite=True
+    )
+    if outcome.errors:
+        raise ValueError(outcome.errors[0].message)
+    assert outcome.yaml_path is not None
+    return outcome.yaml_path
 
 
 def inspect_yaml(

@@ -24,6 +24,9 @@ from app.schemas.api import (
     LegacyYamlFilesResponse,
     LegacyYamlInfoResponse,
     LegacyYamlUploadResponse,
+    LegacyYamlsUploadResponse,
+    FileExtractionResult,
+    ExtractionError,
     PipelineLogEntryResponse,
 )
 from app.services import legacy_pipeline_service as legacy_svc
@@ -121,6 +124,39 @@ async def upload_legacy_yaml(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return LegacyYamlUploadResponse(kind=kind, yaml_path=yaml_path)
+
+
+@router.post("/pipelines/{kind}/yamls-upload", response_model=LegacyYamlsUploadResponse)
+async def upload_legacy_yamls(
+    kind: LegacyPipelineKind,
+    files: list[UploadFile] = File(...),
+) -> LegacyYamlsUploadResponse:
+    _ensure_kind(kind)
+    if not files:
+        raise HTTPException(status_code=400, detail="En az bir YAML dosyası gerekli")
+
+    payloads: list[tuple[str, bytes]] = []
+    for upload in files:
+        content = await upload.read()
+        payloads.append((upload.filename or "uploaded.yaml", content))
+
+    outcomes = legacy_svc.extract_uploaded_yamls(kind, files=payloads)
+    results = [
+        FileExtractionResult(
+            filename=o.filename,
+            yaml_path=o.yaml_path,
+            errors=[ExtractionError(type=e.type, message=e.message, location=e.location) for e in o.errors],
+            warnings=[ExtractionError(type=w.type, message=w.message, location=w.location) for w in o.warnings],
+        )
+        for o in outcomes
+    ]
+    ok = sum(1 for r in results if not r.errors)
+    return LegacyYamlsUploadResponse(
+        kind=kind,
+        results=results,
+        ok_count=ok,
+        error_count=len(results) - ok,
+    )
 
 
 @router.post("/pipelines/{kind}/batch-run", response_model=LegacyBatchRunResponse)
