@@ -10,6 +10,8 @@ from app.api.auth import router as auth_router
 from app.api.explorer import router as explorer_router
 from app.api.agent import router as agent_router
 from app.api.legacy import router as legacy_router
+from app.api.agent import router as agent_router
+from app.api.content import router as content_router
 from app.api.logs import router as logs_router
 from app.api.pipeline import router as pipeline_router, assets_router
 from app.db.database import init_db
@@ -31,6 +33,7 @@ app.include_router(auth_router)
 app.include_router(pipeline_router)
 app.include_router(assets_router)
 app.include_router(agent_router)
+app.include_router(content_router)
 app.include_router(logs_router)
 app.include_router(explorer_router)
 app.include_router(legacy_router)

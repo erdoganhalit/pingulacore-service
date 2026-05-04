@@ -12,20 +12,22 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Sparkles, GitBranch, Split, Bot, Home, BookOpen, FilePlus2 } from 'lucide-react'
 
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
-import { FilesPage } from './pages/FilesPage'
+import { ContentManagementPage } from './pages/ContentManagementPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
 import { HomePage } from './pages/HomePage'
 import { LegacyPipelinePage } from './pages/LegacyPipelinePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubPipelinesPage } from './pages/SubPipelinesPage'
-import { TemplatesPage } from './pages/TemplatesPage'
-import type { AuthUser, RuntimeInfoResponse } from './types'
+import { YamlCreatePage } from './pages/YamlCreatePage'
+import type { RuntimeInfoResponse } from './types'
 
 const navigation = [
   { to: '/', label: 'Ana Sayfa', Icon: Home, end: true },
@@ -35,6 +37,8 @@ const navigation = [
   { to: '/files', label: 'Files & Favorites', Icon: FolderTree, end: false },
   { to: '/templates', label: 'Şablonlar', Icon: BookOpen, end: false },
   { to: '/legacy', label: 'Legacy Pipeline', Icon: Archive, end: false },
+  { to: '/content', label: 'Müfredat Yönetimi', Icon: BookOpen, end: false },
+  { to: '/content/yaml-create', label: 'YAML Oluştur', Icon: FilePlus2, end: false },
 ]
 
 export default function App() {
@@ -161,6 +165,9 @@ function AppLayout() {
           <Route path="/files" element={<FilesPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/legacy" element={<LegacyPipelinePage />} />
+          <Route path="/content" element={<ContentManagementPage />} />
+          <Route path="/content/yaml-create" element={<YamlCreatePage />} />
+          <Route path="/templates" element={<Navigate to="/content" replace />} />
         </Routes>
       </main>
     </div>
