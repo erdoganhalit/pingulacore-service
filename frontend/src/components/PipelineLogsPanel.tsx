@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
 
 import type { PipelineLogEntryResponse } from '../types'
@@ -8,6 +8,8 @@ interface PipelineLogsPanelProps {
   title: string
   logs: PipelineLogEntryResponse[]
   onRefresh: () => Promise<void>
+  /** Panel açık başlasın (örn. run başarısız olunca). Sonradan true olursa da açar. */
+  defaultOpen?: boolean
 }
 
 const levelClasses: Record<string, string> = {
@@ -22,14 +24,35 @@ function getLevelClasses(level: string) {
   return levelClasses[level.toLowerCase()] ?? 'bg-gray-50 border-gray-200 text-gray-600'
 }
 
-export function PipelineLogsPanel({ title, logs, onRefresh }: PipelineLogsPanelProps) {
-  const [open, setOpen] = useState(false)
+export function PipelineLogsPanel({ title, logs, onRefresh, defaultOpen }: PipelineLogsPanelProps) {
+  const [open, setOpen] = useState(defaultOpen ?? false)
+
+  // Run durumu değişip defaultOpen true olunca (örn. failed) paneli aç.
+  useEffect(() => {
+    if (defaultOpen) setOpen(true)
+  }, [defaultOpen])
+
+  const { errorCount, warnCount } = useMemo(() => {
+    let errorCount = 0
+    let warnCount = 0
+    for (const row of logs) {
+      const l = row.level.toLowerCase()
+      if (l === 'error') errorCount++
+      else if (l === 'warning' || l === 'warn') warnCount++
+    }
+    return { errorCount, warnCount }
+  }, [logs])
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden mb-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border"
-        style={{ background: 'linear-gradient(to right, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--muted) 40%, transparent))' }}>
+      <div
+        className="flex items-center justify-between px-5 py-3 border-b border-border"
+        style={{
+          background:
+            'linear-gradient(to right, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--muted) 40%, transparent))',
+        }}
+      >
         <button
           type="button"
           onClick={() => setOpen(!open)}
@@ -40,6 +63,16 @@ export function PipelineLogsPanel({ title, logs, onRefresh }: PipelineLogsPanelP
           {logs.length > 0 && (
             <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/60 border border-border text-muted-foreground">
               {logs.length}
+            </span>
+          )}
+          {errorCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 border border-red-200 text-red-700">
+              {errorCount} error
+            </span>
+          )}
+          {warnCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 border border-amber-200 text-amber-700">
+              {warnCount} warning
             </span>
           )}
         </button>
@@ -60,14 +93,14 @@ export function PipelineLogsPanel({ title, logs, onRefresh }: PipelineLogsPanelP
           ) : (
             logs.map((row) => (
               <div key={row.id} className="space-y-1">
-                <div className={`flex flex-wrap items-start gap-2 px-3 py-2 rounded-lg border text-xs ${getLevelClasses(row.level)}`}>
+                <div
+                  className={`flex flex-wrap items-start gap-2 px-3 py-2 rounded-lg border text-xs ${getLevelClasses(row.level)}`}
+                >
                   <span className="font-mono shrink-0 opacity-70">{row.created_at}</span>
                   <span className="font-semibold shrink-0 uppercase">[{row.component}]</span>
                   <span className="flex-1">{row.message}</span>
                 </div>
-                {row.details != null && (
-                  <JsonPanel title={`Detay #${row.id}`} data={row.details} />
-                )}
+                {row.details != null && <JsonPanel title={`Detay #${row.id}`} data={row.details} />}
               </div>
             ))
           )}

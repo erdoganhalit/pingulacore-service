@@ -116,7 +116,7 @@ class GeneratedVisualQuestion(BaseModel):
     )
 
     # --- HTML sablonu ---
-    html_content: str = Field(description="Uretilen HTML sablonu")
+    html_content: str = Field(default="", description="Uretilen HTML sablonu (build_question_html tarafindan doldurulur)")
 
     # --- Zorluk ---
     difficulty_level: str = Field(

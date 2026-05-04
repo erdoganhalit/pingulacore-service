@@ -339,6 +339,16 @@ class YamlInstancePropertyValue(Base):
     property_definition: Mapped[PropertyDefinition] = relationship(back_populates="instance_values")
 
 
+class VariantRotationState(Base):
+    __tablename__ = "variant_rotation_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    yaml_key: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    last_index: Mapped[int] = mapped_column(Integer, default=-1)
+    last_variant: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 
