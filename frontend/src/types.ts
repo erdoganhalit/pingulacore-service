@@ -386,6 +386,28 @@ export interface LegacyYamlUploadResponse {
   yaml_path: string
 }
 
+export type ExtractionErrorType = 'parse' | 'schema' | 'semantic'
+
+export interface ExtractionError {
+  type: ExtractionErrorType
+  message: string
+  location?: string | null
+}
+
+export interface FileExtractionResult {
+  filename: string
+  yaml_path?: string | null
+  errors: ExtractionError[]
+  warnings: ExtractionError[]
+}
+
+export interface LegacyYamlsUploadResponse {
+  kind: LegacyPipelineKind
+  results: FileExtractionResult[]
+  ok_count: number
+  error_count: number
+}
+
 export interface LegacyYamlInfoResponse {
   kind: LegacyPipelineKind
   yaml_path: string

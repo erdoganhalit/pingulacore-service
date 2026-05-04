@@ -330,6 +330,29 @@ class LegacyYamlUploadResponse(BaseModel):
     yaml_path: str
 
 
+ExtractionErrorType = Literal["parse", "schema", "semantic"]
+
+
+class ExtractionError(BaseModel):
+    type: ExtractionErrorType
+    message: str
+    location: str | None = None
+
+
+class FileExtractionResult(BaseModel):
+    filename: str
+    yaml_path: str | None = None
+    errors: list[ExtractionError] = Field(default_factory=list)
+    warnings: list[ExtractionError] = Field(default_factory=list)
+
+
+class LegacyYamlsUploadResponse(BaseModel):
+    kind: LegacyPipelineKind
+    results: list[FileExtractionResult] = Field(default_factory=list)
+    ok_count: int = 0
+    error_count: int = 0
+
+
 class LegacyYamlInfoResponse(BaseModel):
     kind: LegacyPipelineKind
     yaml_path: str

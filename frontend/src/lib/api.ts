@@ -40,6 +40,7 @@ import type {
   LegacyPipelinesResponse,
   LegacyYamlFilesResponse,
   LegacyYamlUploadResponse,
+  LegacyYamlsUploadResponse,
   LegacyYamlInfoResponse,
   LegacyYamlContentResponse,
   LegacyYamlContentUpdateRequest,
@@ -465,6 +466,15 @@ export const api = {
     formData.append('file', file)
     return apiFetch<LegacyYamlUploadResponse>(
       `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-upload`,
+      { method: 'POST', body: formData },
+    )
+  },
+
+  uploadLegacyYamls: (kind: LegacyPipelineKind, files: File[]) => {
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+    return apiFetch<LegacyYamlsUploadResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yamls-upload`,
       { method: 'POST', body: formData },
     )
   },
