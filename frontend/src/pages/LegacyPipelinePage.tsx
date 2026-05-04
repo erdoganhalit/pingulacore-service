@@ -408,7 +408,6 @@ export function LegacyPipelinePage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">YAML kökü (repo): {p.yaml_root}/</p>
                   </div>
                 </button>
               )
@@ -759,7 +758,7 @@ export function LegacyPipelinePage() {
                     <button
                       type="button"
                       onClick={() => void handleDownloadAll(r.run_id)}
-                      disabled={r.outputs.length === 0}
+                      disabled={r.outputs_available === false || r.outputs.length === 0}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm hover:bg-accent transition-colors disabled:opacity-40"
                       style={{ borderColor: 'var(--border)' }}
                     >
@@ -771,6 +770,12 @@ export function LegacyPipelinePage() {
                   {r.error && (
                     <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-red-50 text-red-700 border border-red-200">
                       {r.error}
+                    </div>
+                  )}
+
+                  {r.outputs_available === false && (
+                    <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-amber-50 text-amber-800 border border-amber-200">
+                      {r.outputs_message || 'Bu oturumun çıktıları süresi dolduğu için erişilemiyor.'}
                     </div>
                   )}
 

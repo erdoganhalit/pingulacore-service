@@ -820,6 +820,64 @@ def delete_yaml_instance(db: Session, instance_id: str) -> bool:
     return True
 
 
+def list_legacy_yaml_instances(db: Session, kind: str) -> list[models.LegacyYamlInstance]:
+    stmt = (
+        select(models.LegacyYamlInstance)
+        .where(models.LegacyYamlInstance.kind == _clean_text(kind))
+        .order_by(models.LegacyYamlInstance.yaml_path.asc(), models.LegacyYamlInstance.created_at.asc())
+    )
+    return list(db.scalars(stmt).all())
+
+
+def get_legacy_yaml_instance_by_path(
+    db: Session, *, kind: str, yaml_path: str
+) -> models.LegacyYamlInstance | None:
+    stmt = select(models.LegacyYamlInstance).where(
+        models.LegacyYamlInstance.kind == _clean_text(kind),
+        models.LegacyYamlInstance.yaml_path == _clean_text(yaml_path),
+    )
+    return db.scalar(stmt)
+
+
+def upsert_legacy_yaml_instance(
+    db: Session,
+    *,
+    kind: str,
+    yaml_path: str,
+    content_text: str,
+) -> models.LegacyYamlInstance:
+    safe_kind = _clean_text(kind)
+    safe_path = _clean_text(yaml_path)
+    if safe_kind not in {"geometry", "turkce"}:
+        raise ValueError("Geçersiz legacy pipeline türü")
+    if not safe_path:
+        raise ValueError("YAML yolu boş olamaz")
+
+    row = get_legacy_yaml_instance_by_path(db, kind=safe_kind, yaml_path=safe_path)
+    if row is None:
+        row = models.LegacyYamlInstance(
+            id=str(uuid4()),
+            kind=safe_kind,
+            yaml_path=safe_path,
+            content_text=content_text,
+        )
+    else:
+        row.content_text = content_text
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def delete_legacy_yaml_instance(db: Session, *, kind: str, yaml_path: str) -> bool:
+    row = get_legacy_yaml_instance_by_path(db, kind=kind, yaml_path=yaml_path)
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
+
+
 def create_artifact(
     db: Session,
     *,

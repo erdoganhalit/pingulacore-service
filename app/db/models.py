@@ -410,6 +410,22 @@ class YamlInstancePropertyValue(Base):
     property_definition: Mapped[PropertyDefinition] = relationship(back_populates="instance_values")
 
 
+class LegacyYamlInstance(Base):
+    __tablename__ = "legacy_yaml_instances"
+    __table_args__ = (
+        UniqueConstraint("kind", "yaml_path", name="uq_legacy_yaml_instances_kind_path"),
+        CheckConstraint("kind IN ('geometry','turkce')", name="ck_legacy_yaml_instances_kind"),
+        Index("ix_legacy_yaml_instances_kind", "kind"),
+    )
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, default="geometry")
+    yaml_path: Mapped[str] = mapped_column(Text, default="")
+    content_text: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 

@@ -44,6 +44,7 @@ import type {
   LegacyYamlInfoResponse,
   LegacyYamlContentResponse,
   LegacyYamlContentUpdateRequest,
+  LegacyYamlDeleteResponse,
   LegacyBatchRunRequest,
   LegacyBatchRunResponse,
   LegacyBatchDetailResponse,
@@ -56,6 +57,7 @@ const JSON_HEADERS = {
 
 export const AUTH_TOKEN_STORAGE_KEY = 'pingula.auth_token'
 export const AUTH_UNAUTHORIZED_EVENT = 'pingula:auth-unauthorized'
+export const LEGACY_SESSION_STORAGE_KEY = 'pingula.legacy_session_id'
 
 export function getStoredAuthToken(): string | null {
   if (typeof window === 'undefined') return null
@@ -77,6 +79,29 @@ export function setStoredAuthToken(token: string | null): void {
   } catch {
     /* ignore quota/access errors */
   }
+}
+
+export function getLegacySessionId(): string {
+  if (typeof window === 'undefined') return 'legacy-session-server'
+  try {
+    const current = window.sessionStorage.getItem(LEGACY_SESSION_STORAGE_KEY)
+    if (current && current.trim()) return current
+    const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    window.sessionStorage.setItem(LEGACY_SESSION_STORAGE_KEY, generated)
+    return generated
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+function withLegacySessionHeaders(headers?: HeadersInit): Headers {
+  const h = new Headers(headers)
+  if (!h.has('X-Session-Id')) {
+    h.set('X-Session-Id', getLegacySessionId())
+  }
+  return h
 }
 
 export class ApiError extends Error implements ApiErrorShape {
@@ -499,25 +524,37 @@ export const api = {
       },
     ),
 
+  deleteLegacyYamlContent: (kind: LegacyPipelineKind, yamlPath: string) =>
+    apiFetch<LegacyYamlDeleteResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-content?yaml_path=${encodeURIComponent(yamlPath)}`,
+      { method: 'DELETE' },
+    ),
+
   runLegacyBatch: (kind: LegacyPipelineKind, payload: LegacyBatchRunRequest) =>
     apiFetch<LegacyBatchRunResponse>(
       `/v1/legacy/pipelines/${encodeURIComponent(kind)}/batch-run`,
       {
         method: 'POST',
-        headers: JSON_HEADERS,
+        headers: withLegacySessionHeaders(JSON_HEADERS),
         body: JSON.stringify(payload),
       },
     ),
 
   getLegacyRun: (runId: string) =>
-    apiFetch<LegacyRunDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(runId)}`),
+    apiFetch<LegacyRunDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(runId)}`, {
+      headers: withLegacySessionHeaders(),
+    }),
 
   getLegacyBatch: (batchId: string) =>
-    apiFetch<LegacyBatchDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(batchId)}/batch`),
+    apiFetch<LegacyBatchDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(batchId)}/batch`, {
+      headers: withLegacySessionHeaders(),
+    }),
 
   getLegacyRunDownloadUrl: (runId: string, subdir?: string) => {
+    const sid = encodeURIComponent(getLegacySessionId())
     const base = `/v1/legacy/runs/${encodeURIComponent(runId)}/download`
-    return subdir ? `${base}?subdir=${encodeURIComponent(subdir)}` : base
+    const query = subdir ? `subdir=${encodeURIComponent(subdir)}&sid=${sid}` : `sid=${sid}`
+    return `${base}?${query}`
   },
 
   getLegacyRunLogs: (runId: string) =>

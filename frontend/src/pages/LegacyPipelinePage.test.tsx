@@ -217,7 +217,6 @@ describe('LegacyPipelinePage', () => {
     render(<LegacyPipelinePage />)
 
     expect(await screen.findByRole('button', { name: /Geometri/i })).toBeInTheDocument()
-    expect(screen.getByText(/YAML kökü \(repo\): legacy_app\/geometri\/pomodoro\//)).toBeInTheDocument()
 
     fireEvent.click(await screen.findByRole('checkbox', { name: `YAML seç: ${geometryVariantYaml}` }))
 
@@ -277,7 +276,6 @@ describe('LegacyPipelinePage', () => {
     const drawer = await screen.findByText('YAML Görüntüle / Düzenle')
     expect(drawer).toBeInTheDocument()
     expect(await screen.findByDisplayValue(/question: ekran uzerinden test/)).toBeInTheDocument()
-    expect(screen.getByText(/Repo YAML'ı düzenliyorsun/)).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Kapat' })[1])
     await waitFor(() => {

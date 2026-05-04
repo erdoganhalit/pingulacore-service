@@ -312,7 +312,6 @@ class LegacyPipelineDescriptor(BaseModel):
     kind: LegacyPipelineKind
     label: str
     enabled: bool
-    yaml_root: str
     default_params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -373,6 +372,12 @@ class LegacyYamlContentUpdateRequest(BaseModel):
     content: str
 
 
+class LegacyYamlDeleteResponse(BaseModel):
+    kind: LegacyPipelineKind
+    yaml_path: str
+    deleted: bool
+
+
 class LegacyBatchItem(BaseModel):
     yaml_path: str
     params: dict[str, Any] = Field(default_factory=dict)
@@ -410,6 +415,8 @@ class LegacyRunDetail(BaseModel):
     error: str | None = None
     started_at: str
     finished_at: str | None = None
+    outputs_available: bool = True
+    outputs_message: str | None = None
     outputs: list[LegacyOutputNode] = Field(default_factory=list)
 
 

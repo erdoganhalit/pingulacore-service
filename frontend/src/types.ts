@@ -368,7 +368,6 @@ export interface LegacyPipelineDescriptor {
   kind: LegacyPipelineKind
   label: string
   enabled: boolean
-  yaml_root: string
   default_params: Record<string, unknown>
 }
 
@@ -428,6 +427,12 @@ export interface LegacyYamlContentUpdateRequest {
   content: string
 }
 
+export interface LegacyYamlDeleteResponse {
+  kind: LegacyPipelineKind
+  yaml_path: string
+  deleted: boolean
+}
+
 export interface LegacyBatchItem {
   yaml_path: string
   params?: Record<string, string | number | boolean>
@@ -465,6 +470,8 @@ export interface LegacyRunDetail {
   error?: string | null
   started_at: string
   finished_at?: string | null
+  outputs_available?: boolean
+  outputs_message?: string | null
   outputs: LegacyOutputNode[]
 }
 
