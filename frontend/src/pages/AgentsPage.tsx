@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { useLogStream } from '../hooks/useLogStream'
 import { ApiError, api } from '../lib/api'
 import { pickHtmlContent } from '../lib/html'
+import { randomUuid } from '../lib/uuid'
 import type { AgentRunGetResponse, StandaloneAgentName, StandaloneAgentResponse, YamlInstanceItem } from '../types'
 
 interface FieldConfig {

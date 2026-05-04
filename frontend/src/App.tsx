@@ -1,33 +1,34 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import {
-  Sparkles,
-  GitBranch,
-  Split,
-  Bot,
-  Home,
-  FolderTree,
-  BookOpen,
   Archive,
+  BookOpen,
+  Bot,
+  FilePlus2,
+  FolderTree,
+  GitBranch,
+  Home,
   LogOut,
   ShieldCheck,
+  Sparkles,
+  Split,
 } from 'lucide-react'
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
-import { Sparkles, GitBranch, Split, Bot, Home, BookOpen, FilePlus2 } from 'lucide-react'
 
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
 import { ContentManagementPage } from './pages/ContentManagementPage'
+import { FilesPage } from './pages/FilesPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
 import { HomePage } from './pages/HomePage'
 import { LegacyPipelinePage } from './pages/LegacyPipelinePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubPipelinesPage } from './pages/SubPipelinesPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 import { YamlCreatePage } from './pages/YamlCreatePage'
-import type { RuntimeInfoResponse } from './types'
+import type { AuthUser, RuntimeInfoResponse } from './types'
 
 const navigation = [
   { to: '/', label: 'Ana Sayfa', Icon: Home, end: true },

@@ -15,7 +15,7 @@ import { YamlInstanceCascadeSelector } from '../components/YamlInstanceCascadeSe
 import { useLogStream } from '../hooks/useLogStream'
 import { usePolling } from '../hooks/usePolling'
 import { ApiError, api } from '../lib/api'
-import { pickHtmlContent, toAssetUrlFromPath } from '../lib/html'
+import { pickHtmlContent } from '../lib/html'
 import { randomUuid } from '../lib/uuid'
 import type {
   CurriculumNodeItem,
