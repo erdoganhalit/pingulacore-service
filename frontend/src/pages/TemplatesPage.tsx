@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { Plus, Save, Trash2 } from 'lucide-react'
 
+// TODO: This page is kept temporarily for backward compatibility and planned to be removed in a future cleanup.
+
 const SUBJECTS = ['Türkçe', 'Matematik', 'Fen Bilgisi', 'Sosyal Bilgiler'] as const
 
 type Subject = (typeof SUBJECTS)[number]
