@@ -63,7 +63,6 @@ _model = get_model(ModelRole.QUESTION_GENERATOR)
 # {difficulty}         <- run() parametresi
 # {onemli_kurallar}    <- _build_important_rules() -- YAML icerigine gore dinamik
 # {soru_uretim_talimati} <- _build_question_generation_instructions()
-# {html_talimati}      <- _build_html_instructions()
 # {reference_mode_instructions} <- _build_reference_mode_instructions()
 # {feedback_section}   <- Retry varsa onceki validation/solver feedback
 # {format_instructions}<- PydanticOutputParser
@@ -95,8 +94,6 @@ Aşağıdaki adımları sırayla uygula. Tüm çıktıyı tek seferde oluştur:
 4. **Görsel düzeni belirle**: Görselin düzenini (visual_layout) ve görsel öğeleri (visual_elements) tanımla. visual_elements içine "text", "label", "etiket" gibi yazı öğeleri EKLEME — sadece nesne çizimleri ve pozisyonlarını belirt.
 
 {soru_uretim_talimati}
-
-7. **HTML şablonu oluştur**: {html_talimati}
 
 ## ÖNEMLİ KURALLAR
 
@@ -210,34 +207,6 @@ def _build_question_generation_instructions(template: ParsedTemplate) -> str:
     )
 
     return "\n".join(lines)
-
-
-def _build_html_instructions(template: ParsedTemplate) -> str:
-    """HTML olusturma talimatini question_count'a gore dallandirir."""
-    header = template.header_template or ""
-    qc = template.question_count
-
-    base_rules = (
-        "\n\n   HTML KURALLARI:\n"
-        '   - Görsel için TAM OLARAK şu placeholder\'ı kullan: <div class="visual-placeholder"></div>\n'
-        "   - Bu placeholder'ın İÇİNE hiçbir şey koyma (iç div, metin, [Görsel] yazısı vb. YASAK)\n"
-        "   - Placeholder tek bir boş div olmalı — sistem bunu otomatik olarak gerçek görselle değiştirecek\n"
-        "   - HTML tam bir sayfa olmalı: <!DOCTYPE html>, <html>, <head>, <body> etiketleri dahil\n"
-        "   - CSS stillerini <style> etiketi içinde tanımla\n"
-    )
-
-    if qc <= 1:
-        return (
-            f'Tüm içeriği birleştiren HTML şablonunu yaz (html_content). '
-            f'HTML\'in başına şu yönerge metnini ekle: "{header}"'
-            f'{base_rules}'
-        )
-    return (
-        f'Tüm {qc} soruyu İÇEREN tek bir HTML şablonu yaz (html_content). '
-        f'Üstte ortak senaryo metni, ardından görsel placeholder, sonra her soru ayrı '
-        f'bir blok olarak sıralanmalı. HTML\'in başına şu yönerge metnini ekle: "{header}"'
-        f'{base_rules}'
-    )
 
 
 def _build_reference_mode_instructions(template: ParsedTemplate) -> str:
@@ -696,7 +665,6 @@ def _build_chain(
             "yaml_constraints": extract_for_question_chain(template),
             "difficulty": difficulty,
             "soru_uretim_talimati": _build_question_generation_instructions(template),
-            "html_talimati": _build_html_instructions(template),
             "onemli_kurallar": _build_important_rules(template),
             "reference_mode_instructions": _build_reference_mode_instructions(template),
             "variant_instruction": _build_variant_instruction(template, variant_name),
@@ -722,21 +690,18 @@ def generate_visual_question(
         variant_name: Kullanilacak varyant adi (None ise LLM secer)
 
     Returns:
-        GeneratedVisualQuestion: Sahne, senaryo, soru, siklar, cozum, HTML
+        GeneratedVisualQuestion: Sahne, senaryo, soru, siklar, cozum
     """
     import random
 
     chain = _build_chain(template, difficulty, feedback, variant_name)
-    pipeline_log("LLM-1", "Mega soru üretimi (sahne, soru, şıklar, HTML) — model çağrılıyor…")
+    pipeline_log("LLM-1", "Mega soru üretimi (sahne, soru, şıklar) — model çağrılıyor…")
     result = chain.invoke({})
     pipeline_log("LLM-1", "Mega soru üretimi tamamlandı.")
 
     # Siklari shuffle et: dogru cevap her zaman A olmasi engellensin.
     # Shuffle sonrasi q.correct_answer yeni etikete map'lenir.
-    # Ayrica self_solution.chosen_answer (LLM'in kendi cevabi) ve html_content
-    # (LLM'in urettigi statik HTML) shuffle oncesi siraya dayandigindan senkronize
-    # edilmelidir: self_solution re-map, html_content ise bosaltilir — finalize
-    # node'u build_question_html ile post-shuffle kanonik HTML'i yeniden uretir.
+    # self_solution.chosen_answer shuffle oncesi siraya dayandigindan re-map gerekir.
     self_solution = result.self_solution if isinstance(result.self_solution, dict) else None
     pre_shuffle_chosen_value: Optional[str] = None
     if self_solution and result.questions:
@@ -760,10 +725,5 @@ def generate_visual_question(
             if value == pre_shuffle_chosen_value:
                 self_solution["chosen_answer"] = label
                 break
-
-    # LLM'in urettigi statik html_content shuffle oncesi sik sirasini tasir;
-    # finalize node'u build_question_html ile post-shuffle dogru HTML'i yazacagi
-    # icin bu alani bosaltmak tek gercek kaynagi garantiler.
-    result.html_content = ""
 
     return result

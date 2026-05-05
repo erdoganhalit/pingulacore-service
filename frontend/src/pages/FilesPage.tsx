@@ -19,6 +19,8 @@ import { Modal } from '../components/Modal'
 import { ApiError, api } from '../lib/api'
 import type { ExplorerFileReadResponse, ExplorerRoot, ExplorerTreeNode } from '../types'
 
+// TODO: This page is kept temporarily for backward compatibility and planned to be removed in a future cleanup.
+
 type TreeMap = Record<ExplorerRoot, ExplorerTreeNode[]>
 
 interface SelectedFile {

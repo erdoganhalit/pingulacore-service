@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import {
-  Sparkles,
-  GitBranch,
-  Split,
-  Bot,
-  Home,
-  FolderTree,
-  BookOpen,
   Archive,
+  BookOpen,
+  Bot,
+  FilePlus2,
+  GitBranch,
+  Home,
+  Image as ImageIcon,
   LogOut,
   ShieldCheck,
+  Sparkles,
+  Split,
 } from 'lucide-react'
 
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
+import { CatalogAssetsPage } from './pages/CatalogAssetsPage'
+import { ContentManagementPage } from './pages/ContentManagementPage'
 import { FilesPage } from './pages/FilesPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
 import { HomePage } from './pages/HomePage'
@@ -25,16 +28,26 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubPipelinesPage } from './pages/SubPipelinesPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { YamlCreatePage } from './pages/YamlCreatePage'
 import type { AuthUser, RuntimeInfoResponse } from './types'
 
-const navigation = [
-  { to: '/', label: 'Ana Sayfa', Icon: Home, end: true },
-  { to: '/full', label: 'Full Pipeline', Icon: GitBranch, end: false },
-  { to: '/sub-pipelines', label: 'Sub-Pipelines', Icon: Split, end: false },
-  { to: '/agents', label: 'Standalone Agents', Icon: Bot, end: false },
-  { to: '/files', label: 'Files & Favorites', Icon: FolderTree, end: false },
-  { to: '/templates', label: 'Şablonlar', Icon: BookOpen, end: false },
-  { to: '/legacy', label: 'Legacy Pipeline', Icon: Archive, end: false },
+type NavigationItem =
+  | { kind: 'link'; to: string; label: string; Icon: typeof Home; end: boolean }
+  | { kind: 'spacer'; key: string }
+  | { kind: 'divider'; key: string }
+
+const navigation: NavigationItem[] = [
+  { kind: 'link', to: '/', label: 'Ana Sayfa', Icon: Home, end: true },
+  { kind: 'spacer', key: 'top-gap' },
+  { kind: 'link', to: '/full', label: 'Full Pipeline', Icon: GitBranch, end: false },
+  { kind: 'link', to: '/sub-pipelines', label: 'Sub-Pipelines', Icon: Split, end: false },
+  { kind: 'link', to: '/agents', label: 'Standalone Agents', Icon: Bot, end: false },
+  { kind: 'divider', key: 'group-divider-1' },
+  { kind: 'link', to: '/content', label: 'Müfredat Yönetimi', Icon: BookOpen, end: false },
+  { kind: 'link', to: '/catalog-assets', label: 'Katalog Görselleri', Icon: ImageIcon, end: false },
+  { kind: 'link', to: '/content/yaml-create', label: 'YAML Oluştur', Icon: FilePlus2, end: false },
+  { kind: 'divider', key: 'group-divider-2' },
+  { kind: 'link', to: '/legacy', label: 'Legacy Pipeline', Icon: Archive, end: false },
 ]
 
 export default function App() {
@@ -96,27 +109,35 @@ function AppLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navigation.map(({ to, label, Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 text-left no-underline ${
-                  isActive ? 'bg-white/20 shadow-lg' : 'hover:bg-white/10'
-                }`
-              }
-            >
-              {({ isActive }: { isActive: boolean }) => (
-                <>
-                  <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`} />
-                  <span className={`text-sm ${isActive ? 'text-white font-medium' : 'text-white/70'}`}>
-                    {label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
+          {navigation.map((item) => {
+            if (item.kind === 'spacer') {
+              return <div key={item.key} className="h-3" aria-hidden />
+            }
+            if (item.kind === 'divider') {
+              return <div key={item.key} className="my-2 border-t border-white/15" aria-hidden />
+            }
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 text-left no-underline ${
+                    isActive ? 'bg-white/20 shadow-lg' : 'hover:bg-white/10'
+                  }`
+                }
+              >
+                {({ isActive }: { isActive: boolean }) => (
+                  <>
+                    <item.Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-white/70'}`} />
+                    <span className={`text-sm ${isActive ? 'text-white font-medium' : 'text-white/70'}`}>
+                      {item.label}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* Runtime Info */}
@@ -161,6 +182,10 @@ function AppLayout() {
           <Route path="/files" element={<FilesPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/legacy" element={<LegacyPipelinePage />} />
+          <Route path="/catalog-assets" element={<CatalogAssetsPage />} />
+          <Route path="/content" element={<ContentManagementPage />} />
+          <Route path="/content/yaml-create" element={<YamlCreatePage />} />
+          <Route path="/templates" element={<Navigate to="/content" replace />} />
         </Routes>
       </main>
     </div>
