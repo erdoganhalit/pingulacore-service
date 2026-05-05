@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import { LogStreamPanel } from '../components/LogStreamPanel'
+import { PipelineLogsPanel } from '../components/PipelineLogsPanel'
 import { StatusBadge } from '../components/StatusBadge'
 import { YamlDrawer } from '../components/YamlDrawer'
 import { OutputTree, OutputPreviewGrid } from '../components/OutputTree'
@@ -28,6 +29,7 @@ import type {
   LegacyPipelineDescriptor,
   LegacyPipelineKind,
   LegacyYamlInfoResponse,
+  PipelineLogEntryResponse,
 } from '../types'
 
 const DIFFICULTIES = ['kolay', 'orta', 'zor'] as const
@@ -75,6 +77,7 @@ export function LegacyPipelinePage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerYaml, setDrawerYaml] = useState<string | null>(null)
+  const [runLogs, setRunLogs] = useState<Record<string, PipelineLogEntryResponse[]>>({})
 
   const { lines, connected, done, active, connect } = useLogStream()
 
@@ -224,11 +227,24 @@ export function LegacyPipelinePage() {
     [selectedYamls],
   )
 
+  const fetchRunLogs = async (runId: string) => {
+    try {
+      const logs = await api.getLegacyRunLogs(runId)
+      setRunLogs((prev) => ({ ...prev, [runId]: logs }))
+    } catch {
+      // sessizce geç
+    }
+  }
+
   const refreshBatch = async () => {
     if (!batchId) return
     try {
       const detail = await api.getLegacyBatch(batchId)
       setBatchDetail(detail)
+      // Tüm run'ların loglarını çek: çalışıyorsa canlı güncelleme, bittiyse final.
+      for (const run of detail.runs) {
+        void fetchRunLogs(run.run_id)
+      }
     } catch {
       // sessizce geç
     }
@@ -304,6 +320,7 @@ export function LegacyPipelinePage() {
     }
     setRunError('')
     setBatchDetail(null)
+    setRunLogs({})
     setRunning(true)
 
     const streamKey = randomUuid()
@@ -785,6 +802,13 @@ export function LegacyPipelinePage() {
                       <OutputTree runId={r.run_id} nodes={r.outputs} />
                     </div>
                   )}
+
+                  <PipelineLogsPanel
+                    title="Loglar"
+                    logs={runLogs[r.run_id] ?? []}
+                    onRefresh={() => fetchRunLogs(r.run_id)}
+                    defaultOpen={r.status === 'failed'}
+                  />
                 </div>
               ))}
             </div>

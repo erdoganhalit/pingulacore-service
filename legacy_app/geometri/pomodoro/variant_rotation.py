@@ -2,31 +2,17 @@
 Varyant Rotasyon Modulu
 
 Her pipeline calistirmasinda otomatik olarak bir sonraki varyanti secer.
-Ust uste calistirmalarda farkli varyantlar dogal olarak sirayla gelir.
-
-State dosyasi: .variant_rotation.json (proje kokunde)
-Thread/process-safe: fcntl.flock ile dosya kilidi
+Round-robin rotasyon; state veritabaninda tutulur (disk dosyasina bagimlilik yok).
 """
 from __future__ import annotations
 
-import fcntl
-import json
 import logging
-import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from legacy_app.geometri.pomodoro.yaml_loader import ParsedTemplate
 
 logger = logging.getLogger(__name__)
-
-_PROJECT_ROOT = (
-    Path(os.environ["LEGACY_STATE_DIR"])
-    if os.environ.get("LEGACY_STATE_DIR")
-    else Path(__file__).resolve().parent.parent
-)
-_DEFAULT_STATE_FILE = _PROJECT_ROOT / ".variant_rotation.json"
 
 
 def get_variant_names(template: ParsedTemplate) -> list[str]:
@@ -138,12 +124,12 @@ def _yaml_key(yaml_path: str | Path) -> str:
 def select_next_variant(
     yaml_path: str | Path,
     available_variants: list[str],
-    state_file: Path | None = None,
+    state_file: Path | None = None,  # geriye donuk uyumluluk icin tutuldu, kullanilmiyor
 ) -> str:
-    """Siradaki varyanti secer ve state dosyasini gunceller.
+    """Siradaki varyanti secer ve DB'deki rotasyon durumunu gunceller.
 
     Round-robin rotasyon: her cagri bir sonraki varyanti dondurur.
-    File lock ile thread/process-safe.
+    State veritabaninda tutulur; container yeniden baslatilsa da korunur.
     """
     if not available_variants:
         raise ValueError("available_variants bos olamaz")
@@ -151,41 +137,32 @@ def select_next_variant(
     if len(available_variants) == 1:
         return available_variants[0]
 
-    state_path = state_file or _DEFAULT_STATE_FILE
     key = _yaml_key(yaml_path)
 
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        with open(state_path, "a+") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                fh.seek(0)
-                content = fh.read().strip()
-                state = json.loads(content) if content else {}
-            except (json.JSONDecodeError, ValueError):
-                logger.warning("Bozuk state dosyasi, sifirlaniyor: %s", state_path)
-                state = {}
+        from app.db.database import SessionLocal
+        from app.db.models import VariantRotationState
 
-            entry = state.get(key, {})
-            last_index = entry.get("last_index", -1)
-            next_index = (last_index + 1) % len(available_variants)
+        db = SessionLocal()
+        try:
+            row = db.query(VariantRotationState).filter_by(yaml_key=key).first()
+            if row is None:
+                row = VariantRotationState(yaml_key=key, last_index=-1, last_variant="")
+                db.add(row)
+                db.flush()
+
+            next_index = (row.last_index + 1) % len(available_variants)
             selected = available_variants[next_index]
+            row.last_index = next_index
+            row.last_variant = selected
+            db.commit()
+            return selected
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
-            state[key] = {
-                "last_index": next_index,
-                "last_variant": selected,
-                "updated_at": datetime.now().isoformat(timespec="seconds"),
-            }
-
-            fh.seek(0)
-            fh.truncate()
-            json.dump(state, fh, ensure_ascii=False, indent=2)
-
-            fcntl.flock(fh, fcntl.LOCK_UN)
-
-    except OSError:
-        logger.warning("State dosyasina erisilemedi, ilk varyant seciliyor: %s", state_path)
-        selected = available_variants[0]
-
-    return selected
+    except Exception:
+        logger.warning("Varyant rotasyon state'i DB'den alinamadi, ilk varyant seciliyor: %s", key)
+        return available_variants[0]
