@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void
   title?: string
   children: ReactNode
-  size?: 'default' | 'full'
+  size?: 'default' | 'wide' | 'full'
 }
 
 export function Modal({ open, onClose, title, children, size = 'default' }: ModalProps) {
@@ -28,12 +28,16 @@ export function Modal({ open, onClose, title, children, size = 'default' }: Moda
 
   if (!open) return null
 
-  const sizeClass = size === 'full' ? 'w-[95vw] h-[92vh]' : 'w-[640px] max-h-[80vh]'
+  const sizeClass = size === 'full'
+    ? 'w-[95vw] h-[92vh]'
+    : size === 'wide'
+      ? 'w-[860px] max-h-[84vh]'
+      : 'w-[640px] max-h-[80vh]'
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className={`relative z-[51] ${sizeClass} bg-card rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden`}>
+      <div className={`relative z-[51] ${sizeClass} bg-card border-border shadow-2xl flex flex-col overflow-hidden`}>
         {title && (
           <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0"
             style={{ background: 'linear-gradient(to right, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--muted) 40%, transparent))' }}>

@@ -5,11 +5,35 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.42.89",
     "fastapi>=0.135.3",
     "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.3",
     "pydantic-ai>=1.81.0",
     "pytest>=9.0.3",
     "pyyaml>=6.0.3",
     "sqlalchemy>=2.0.49",
     "uvicorn>=0.44.0",
+    # Vendored legacy pipelines (geometry pomodoro + turkce agentic)
+    "langchain",
+    "langchain-core",
+    "langchain-google-genai",
+    "langgraph",
+    "google-genai",
+    "pydantic",
+    "python-dotenv",
+    "pymupdf",
+    "playwright",
+    "pillow",
+    "img2pdf",
+    "pdf2image",
+    "pyphen",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "legacy_app*"]
+exclude = ["frontend*", "legacy_runners*", "meb_books*", "data*"]
+
+[tool.setuptools.package-data]
+legacy_app = ["**/*.yaml", "**/*.yml", "**/*.txt", "shared/assets/**/*.png"]

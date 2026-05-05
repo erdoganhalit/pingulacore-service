@@ -20,7 +20,7 @@ class RetryConfig(BaseModel):
 
 
 class FullPipelineRunRequest(BaseModel):
-    yaml_filename: str
+    yaml_instance_id: str
     retry_config: RetryConfig | None = None
     stream_key: str | None = None
 
@@ -128,56 +128,58 @@ class FavoriteResponse(BaseModel):
 class FullPipelineRunResponse(BaseModel):
     pipeline_id: str
     sub_pipeline_ids: dict[str, str]
+    question_artifact_id: str
+    layout_artifact_id: str
+    html_artifact_id: str
+    rendered_image_artifact_id: str | None = None
     question_json: QuestionSpec
     layout_plan_json: LayoutPlan
     question_html: dict[str, Any]
-    rendered_image_path: str | None = None
-    run_path: str | None = None
 
 
 class YamlToQuestionRunRequest(BaseModel):
-    yaml_filename: str
+    yaml_instance_id: str
     retry_config: RetryConfig | None = None
     stream_key: str | None = None
 
 
 class YamlToQuestionRunResponse(BaseModel):
     sub_pipeline_id: str
+    question_artifact_id: str
     question_json: QuestionSpec
     rule_evaluation: dict[str, Any]
     attempts: int
-    run_path: str | None = None
 
 
 class QuestionToLayoutRunRequest(BaseModel):
-    question_json: QuestionSpec
+    question_artifact_id: str
     retry_config: RetryConfig | None = None
     stream_key: str | None = None
 
 
 class QuestionToLayoutRunResponse(BaseModel):
     sub_pipeline_id: str
+    layout_artifact_id: str
     layout_plan_json: LayoutPlan
     validation: QuestionLayoutValidationResult
     attempts: int
-    run_path: str | None = None
 
 
 class LayoutToHtmlRunRequest(BaseModel):
-    question_json: QuestionSpec
-    layout_plan_json: LayoutPlan
+    question_artifact_id: str
+    layout_artifact_id: str
     retry_config: RetryConfig | None = None
     stream_key: str | None = None
 
 
 class LayoutToHtmlRunResponse(BaseModel):
     sub_pipeline_id: str
+    html_artifact_id: str
+    rendered_image_artifact_id: str | None = None
     question_html: dict[str, Any]
     validation: HtmlValidationResult
     attempts: int
     generated_assets: dict[str, str] = Field(default_factory=dict)
-    rendered_image_path: str | None = None
-    run_path: str | None = None
 
 
 class StandaloneGenerateQuestionRequest(BaseModel):
@@ -233,12 +235,13 @@ class StandaloneGenerateCompositeImageRequest(BaseModel):
 class StandaloneAgentResponse(BaseModel):
     run_id: str
     result: Any
+    artifact_id: str | None = None
 
 
 class PipelineGetResponse(BaseModel):
     id: str
     mode: str
-    yaml_filename: str
+    yaml_instance_id: str | None = None
     status: str
     retry_config: Any
     error: str | None = None
@@ -300,3 +303,158 @@ class AgentRunGetResponse(BaseModel):
 
 
 ExplorerTreeNode.model_rebuild()
+
+
+LegacyPipelineKind = Literal["geometry", "turkce"]
+
+
+class LegacyPipelineDescriptor(BaseModel):
+    kind: LegacyPipelineKind
+    label: str
+    enabled: bool
+    default_params: dict[str, Any] = Field(default_factory=dict)
+
+
+class LegacyPipelinesResponse(BaseModel):
+    pipelines: list[LegacyPipelineDescriptor]
+
+
+class LegacyYamlFilesResponse(BaseModel):
+    kind: LegacyPipelineKind
+    files: list[str] = Field(default_factory=list)
+
+
+class LegacyYamlUploadResponse(BaseModel):
+    kind: LegacyPipelineKind
+    yaml_path: str
+
+
+ExtractionErrorType = Literal["parse", "schema", "semantic"]
+
+
+class ExtractionError(BaseModel):
+    type: ExtractionErrorType
+    message: str
+    location: str | None = None
+
+
+class FileExtractionResult(BaseModel):
+    filename: str
+    yaml_path: str | None = None
+    errors: list[ExtractionError] = Field(default_factory=list)
+    warnings: list[ExtractionError] = Field(default_factory=list)
+
+
+class LegacyYamlsUploadResponse(BaseModel):
+    kind: LegacyPipelineKind
+    results: list[FileExtractionResult] = Field(default_factory=list)
+    ok_count: int = 0
+    error_count: int = 0
+
+
+class LegacyYamlInfoResponse(BaseModel):
+    kind: LegacyPipelineKind
+    yaml_path: str
+    has_variants: bool
+    variant_count: int
+    variant_names: list[str] = Field(default_factory=list)
+
+
+class LegacyYamlContentResponse(BaseModel):
+    kind: LegacyPipelineKind
+    yaml_path: str
+    content: str
+    is_repo_yaml: bool
+
+
+class LegacyYamlContentUpdateRequest(BaseModel):
+    yaml_path: str
+    content: str
+
+
+class LegacyYamlDeleteResponse(BaseModel):
+    kind: LegacyPipelineKind
+    yaml_path: str
+    deleted: bool
+
+
+class LegacyBatchItem(BaseModel):
+    yaml_path: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    variants: list[str] = Field(default_factory=list)
+
+
+class LegacyBatchRunRequest(BaseModel):
+    items: list[LegacyBatchItem]
+    parallelism: int | None = None
+    stream_key: str | None = None
+
+
+class LegacyBatchRunResponse(BaseModel):
+    batch_id: str
+    run_ids: list[str]
+    status: str
+    stream_key: str | None = None
+
+
+class LegacyOutputNode(BaseModel):
+    name: str
+    type: Literal["dir", "file"]
+    url: str | None = None
+    size: int | None = None
+    rel_path: str
+    children: list["LegacyOutputNode"] = Field(default_factory=list)
+
+
+class LegacyRunDetail(BaseModel):
+    run_id: str
+    kind: LegacyPipelineKind
+    yaml_path: str
+    variant_name: str | None = None
+    status: str
+    error: str | None = None
+    started_at: str
+    finished_at: str | None = None
+    outputs_available: bool = True
+    outputs_message: str | None = None
+    outputs: list[LegacyOutputNode] = Field(default_factory=list)
+
+
+class LegacyRunDetailResponse(LegacyRunDetail):
+    pass
+
+
+class LegacyBatchDetailResponse(BaseModel):
+    batch_id: str
+    kind: LegacyPipelineKind
+    runs: list[LegacyRunDetail] = Field(default_factory=list)
+
+
+class CatalogAssetItem(BaseModel):
+    key: str
+    name: str
+    size: int
+    last_modified: str | None = None
+    mime_type: str | None = None
+    content_url: str
+
+
+class CatalogAssetListResponse(BaseModel):
+    items: list[CatalogAssetItem] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total_count: int
+    query: str | None = None
+
+
+class CatalogAssetUploadResponse(BaseModel):
+    key: str
+    size: int
+    mime_type: str
+
+
+class CatalogAssetDeleteResponse(BaseModel):
+    key: str
+    deleted: bool
+
+
+LegacyOutputNode.model_rebuild()

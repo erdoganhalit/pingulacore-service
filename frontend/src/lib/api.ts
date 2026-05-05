@@ -1,6 +1,15 @@
 import type {
   AgentRunGetResponse,
   ApiErrorShape,
+  AuthTokenResponse,
+  AuthUser,
+  LoginRequest,
+  RegisterRequest,
+  ArtifactItem,
+  CatalogAssetDeleteResponse,
+  CatalogAssetListResponse,
+  CatalogAssetUploadResponse,
+  CurriculumNodeItem,
   ExplorerFavoritePayload,
   ExplorerFileReadResponse,
   ExplorerRoot,
@@ -8,10 +17,14 @@ import type {
   FavoriteCreatePayload,
   FavoriteItem,
   FullPipelineRunResponse,
+  HtmlReRenderResponse,
   LayoutToHtmlRunResponse,
   PipelineAgentLinkResponse,
   PipelineGetResponse,
   PipelineLogEntryResponse,
+  PropertyDefinitionCreatePayload,
+  PropertyDefinitionItem,
+  PropertyDefinitionUpdatePayload,
   QuestionToLayoutRunResponse,
   RetryConfig,
   RuntimeInfoResponse,
@@ -19,11 +32,80 @@ import type {
   StandaloneAgentName,
   StandaloneAgentResponse,
   SubPipelineGetResponse,
+  YamlInstanceCreatePayload,
+  YamlInstanceItem,
+  YamlInstanceUpdatePayload,
+  YamlRenderResponse,
+  YamlTemplateCreatePayload,
+  YamlTemplateItem,
+  YamlTemplateUpdatePayload,
   YamlToQuestionRunResponse,
+  LegacyPipelineKind,
+  LegacyPipelinesResponse,
+  LegacyYamlFilesResponse,
+  LegacyYamlUploadResponse,
+  LegacyYamlsUploadResponse,
+  LegacyYamlInfoResponse,
+  LegacyYamlContentResponse,
+  LegacyYamlContentUpdateRequest,
+  LegacyYamlDeleteResponse,
+  LegacyBatchRunRequest,
+  LegacyBatchRunResponse,
+  LegacyBatchDetailResponse,
+  LegacyRunDetailResponse,
 } from '../types'
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
+}
+
+export const AUTH_TOKEN_STORAGE_KEY = 'pingula.auth_token'
+export const AUTH_UNAUTHORIZED_EVENT = 'pingula:auth-unauthorized'
+export const LEGACY_SESSION_STORAGE_KEY = 'pingula.legacy_session_id'
+
+export function getStoredAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setStoredAuthToken(token: string | null): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (token) {
+      window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+    } else {
+      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+    }
+  } catch {
+    /* ignore quota/access errors */
+  }
+}
+
+export function getLegacySessionId(): string {
+  if (typeof window === 'undefined') return 'legacy-session-server'
+  try {
+    const current = window.sessionStorage.getItem(LEGACY_SESSION_STORAGE_KEY)
+    if (current && current.trim()) return current
+    const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    window.sessionStorage.setItem(LEGACY_SESSION_STORAGE_KEY, generated)
+    return generated
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+function withLegacySessionHeaders(headers?: HeadersInit): Headers {
+  const h = new Headers(headers)
+  if (!h.has('X-Session-Id')) {
+    h.set('X-Session-Id', getLegacySessionId())
+  }
+  return h
 }
 
 export class ApiError extends Error implements ApiErrorShape {
@@ -60,22 +142,49 @@ function parseErrorMessage(status: number, body: unknown): string {
   return `İstek başarısız oldu (HTTP ${status})`
 }
 
+function buildAuthorizedInit(init?: RequestInit): RequestInit | undefined {
+  const token = getStoredAuthToken()
+  if (!token) return init
+
+  const headers = new Headers(init?.headers ?? undefined)
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  return { ...(init ?? {}), headers }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
+  const response = await fetch(path, buildAuthorizedInit(init))
   const contentType = response.headers.get('content-type') ?? ''
 
   let body: unknown = null
   if (contentType.includes('application/json')) {
     body = await response.json()
-  } else {
+  } else if (response.status !== 204) {
     body = await response.text()
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      setStoredAuthToken(null)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
+      }
+    }
     throw new ApiError(response.status, parseErrorMessage(response.status, body), body)
   }
 
   return body as T
+}
+
+function withQuery(path: string, params: Record<string, string | number | boolean | undefined | null>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    search.set(key, String(value))
+  }
+  const query = search.toString()
+  return query ? `${path}?${query}` : path
 }
 
 export const standaloneEndpointMap: Record<StandaloneAgentName, string> = {
@@ -90,35 +199,174 @@ export const standaloneEndpointMap: Record<StandaloneAgentName, string> = {
 }
 
 export const api = {
+  register: (payload: RegisterRequest) =>
+    apiFetch<AuthTokenResponse>('/v1/auth/register', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  login: (payload: LoginRequest) =>
+    apiFetch<AuthTokenResponse>('/v1/auth/login', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  logout: () =>
+    apiFetch<unknown>('/v1/auth/logout', {
+      method: 'POST',
+    }),
+
+  me: () => apiFetch<AuthUser>('/v1/auth/me'),
+
   getRuntimeInfo: () => apiFetch<RuntimeInfoResponse>('/v1/runtime-info'),
 
-  listYamlFiles: async (): Promise<string[]> => {
-    const response = await apiFetch<{ files: string[] }>('/v1/yaml-files')
-    return response.files
+  getCurriculumTree: () => apiFetch<CurriculumNodeItem[]>('/v1/curriculum/tree'),
+
+  createCurriculumNode: (payload: {
+    parent_id?: string | null
+    name: string
+    slug: string
+    grade?: string | null
+    subject?: string | null
+    theme?: string | null
+    code?: string | null
+    sort_order?: number
+  }) =>
+    apiFetch<CurriculumNodeItem>('/v1/curriculum/nodes', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ node_type: 'folder', ...payload }),
+    }),
+
+  listProperties: (params?: {
+    defined_at_curriculum_node_id?: string
+    parent_property_id?: string
+    active_only?: boolean
+  }) =>
+    apiFetch<PropertyDefinitionItem[]>(
+      withQuery('/v1/properties', {
+        defined_at_curriculum_node_id: params?.defined_at_curriculum_node_id,
+        parent_property_id: params?.parent_property_id,
+        active_only: params?.active_only,
+      }),
+    ),
+
+  getEffectiveProperties: (curriculumNodeId: string) =>
+    apiFetch<PropertyDefinitionItem[]>(`/v1/properties/effective/${curriculumNodeId}`),
+
+  getProperty: (propertyId: string) => apiFetch<PropertyDefinitionItem>(`/v1/properties/${propertyId}`),
+
+  createProperty: (payload: PropertyDefinitionCreatePayload) =>
+    apiFetch<PropertyDefinitionItem>('/v1/properties', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  updateProperty: (propertyId: string, payload: PropertyDefinitionUpdatePayload) =>
+    apiFetch<PropertyDefinitionItem>(`/v1/properties/${propertyId}`, {
+      method: 'PATCH',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  deleteProperty: (propertyId: string) =>
+    apiFetch<unknown>(`/v1/properties/${propertyId}`, {
+      method: 'DELETE',
+    }),
+
+  listYamlTemplates: (params?: { curriculum_folder_node_id?: string }) =>
+    apiFetch<YamlTemplateItem[]>(
+      withQuery('/v1/yaml-templates', {
+        curriculum_folder_node_id: params?.curriculum_folder_node_id,
+      }),
+    ),
+
+  getYamlTemplate: (templateId: string) => apiFetch<YamlTemplateItem>(`/v1/yaml-templates/${templateId}`),
+
+  createYamlTemplate: (payload: YamlTemplateCreatePayload) =>
+    apiFetch<YamlTemplateItem>('/v1/yaml-templates', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  updateYamlTemplate: (templateId: string, payload: YamlTemplateUpdatePayload) =>
+    apiFetch<YamlTemplateItem>(`/v1/yaml-templates/${templateId}`, {
+      method: 'PATCH',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  deleteYamlTemplate: (templateId: string) =>
+    apiFetch<unknown>(`/v1/yaml-templates/${templateId}`, {
+      method: 'DELETE',
+    }),
+
+  listYamlInstances: (params?: { template_id?: string }) =>
+    apiFetch<YamlInstanceItem[]>(
+      withQuery('/v1/yaml-instances', {
+        template_id: params?.template_id,
+      }),
+    ),
+
+  getYamlInstance: (instanceId: string) => apiFetch<YamlInstanceItem>(`/v1/yaml-instances/${instanceId}`),
+
+  createYamlInstance: (payload: YamlInstanceCreatePayload) =>
+    apiFetch<YamlInstanceItem>('/v1/yaml-instances', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  updateYamlInstance: (instanceId: string, payload: YamlInstanceUpdatePayload) =>
+    apiFetch<YamlInstanceItem>(`/v1/yaml-instances/${instanceId}`, {
+      method: 'PATCH',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  deleteYamlInstance: (instanceId: string) =>
+    apiFetch<unknown>(`/v1/yaml-instances/${instanceId}`, {
+      method: 'DELETE',
+    }),
+
+  renderYamlInstance: (instanceId: string) =>
+    apiFetch<YamlRenderResponse>(`/v1/yaml-instances/${instanceId}/render`, {
+      method: 'POST',
+    }),
+
+  listArtifacts: (kind?: string) => {
+    const query = kind ? `?kind=${encodeURIComponent(kind)}` : ''
+    return apiFetch<ArtifactItem[]>(`/v1/artifacts${query}`)
   },
 
-  getYamlFileContent: async (filename: string): Promise<Record<string, unknown>> => {
-    const response = await apiFetch<{ filename: string; data: Record<string, unknown> }>(
-      `/v1/yaml-files/${encodeURIComponent(filename)}`,
-    )
-    return response.data
-  },
+  getArtifact: (artifactId: string) => apiFetch<ArtifactItem>(`/v1/artifacts/${artifactId}`),
 
-  runFullPipeline: (payload: { yaml_filename: string; retry_config?: RetryConfig; stream_key?: string }) =>
+  runFullPipeline: (payload: { yaml_instance_id: string; retry_config?: RetryConfig; stream_key?: string }) =>
     apiFetch<FullPipelineRunResponse>('/v1/pipelines/full/run', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(payload),
     }),
 
-  runSubYamlToQuestion: (payload: { yaml_filename: string; retry_config?: RetryConfig; stream_key?: string }) =>
+  reRenderHtmlAsset: (payload: { html_content: string; pipeline_id?: string }) =>
+    apiFetch<HtmlReRenderResponse>('/v1/assets/re-render-html', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  runSubYamlToQuestion: (payload: { yaml_instance_id: string; retry_config?: RetryConfig; stream_key?: string }) =>
     apiFetch<YamlToQuestionRunResponse>('/v1/pipelines/sub/yaml-to-question/run', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(payload),
     }),
 
-  runSubQuestionToLayout: (payload: { question_json: Record<string, unknown>; retry_config?: RetryConfig; stream_key?: string }) =>
+  runSubQuestionToLayout: (payload: { question_artifact_id: string; retry_config?: RetryConfig; stream_key?: string }) =>
     apiFetch<QuestionToLayoutRunResponse>('/v1/pipelines/sub/question-to-layout/run', {
       method: 'POST',
       headers: JSON_HEADERS,
@@ -126,8 +374,8 @@ export const api = {
     }),
 
   runSubLayoutToHtml: (payload: {
-    question_json: Record<string, unknown>
-    layout_plan_json: Record<string, unknown>
+    question_artifact_id: string
+    layout_artifact_id: string
     retry_config?: RetryConfig
     stream_key?: string
   }) =>
@@ -213,6 +461,31 @@ export const api = {
     return apiFetch<FavoriteItem[]>(`/v1/favorites${suffix}`)
   },
 
+  listCatalogAssets: (params?: { cursor?: string; limit?: number; query?: string }) =>
+    apiFetch<CatalogAssetListResponse>(
+      withQuery('/v1/catalog-assets', {
+        cursor: params?.cursor,
+        limit: params?.limit ?? 10,
+        query: params?.query,
+      }),
+    ),
+
+  uploadCatalogAsset: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiFetch<CatalogAssetUploadResponse>('/v1/catalog-assets', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  deleteCatalogAsset: (key: string) =>
+    apiFetch<CatalogAssetDeleteResponse>(`/v1/catalog-assets/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    }),
+
+  getCatalogAssetContentUrl: (key: string) => `/v1/catalog-assets/${encodeURIComponent(key)}/content`,
+
   getFavorite: (favoriteId: number) => apiFetch<FavoriteItem>(`/v1/favorites/${favoriteId}`),
 
   deleteFavorite: (favoriteId: number) =>
@@ -243,4 +516,83 @@ export const api = {
       headers: JSON_HEADERS,
       body: JSON.stringify(payload),
     }),
+
+  listLegacyPipelines: () => apiFetch<LegacyPipelinesResponse>('/v1/legacy/pipelines'),
+
+  listLegacyYamlFiles: (kind: LegacyPipelineKind) =>
+    apiFetch<LegacyYamlFilesResponse>(`/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-files`),
+
+  uploadLegacyYaml: (kind: LegacyPipelineKind, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiFetch<LegacyYamlUploadResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-upload`,
+      { method: 'POST', body: formData },
+    )
+  },
+
+  uploadLegacyYamls: (kind: LegacyPipelineKind, files: File[]) => {
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+    return apiFetch<LegacyYamlsUploadResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yamls-upload`,
+      { method: 'POST', body: formData },
+    )
+  },
+
+  getLegacyYamlInfo: (kind: LegacyPipelineKind, yamlPath: string) =>
+    apiFetch<LegacyYamlInfoResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-info?yaml_path=${encodeURIComponent(yamlPath)}`,
+    ),
+
+  getLegacyYamlContent: (kind: LegacyPipelineKind, yamlPath: string) =>
+    apiFetch<LegacyYamlContentResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-content?yaml_path=${encodeURIComponent(yamlPath)}`,
+    ),
+
+  updateLegacyYamlContent: (kind: LegacyPipelineKind, payload: LegacyYamlContentUpdateRequest) =>
+    apiFetch<LegacyYamlContentResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-content`,
+      {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  deleteLegacyYamlContent: (kind: LegacyPipelineKind, yamlPath: string) =>
+    apiFetch<LegacyYamlDeleteResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/yaml-content?yaml_path=${encodeURIComponent(yamlPath)}`,
+      { method: 'DELETE' },
+    ),
+
+  runLegacyBatch: (kind: LegacyPipelineKind, payload: LegacyBatchRunRequest) =>
+    apiFetch<LegacyBatchRunResponse>(
+      `/v1/legacy/pipelines/${encodeURIComponent(kind)}/batch-run`,
+      {
+        method: 'POST',
+        headers: withLegacySessionHeaders(JSON_HEADERS),
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  getLegacyRun: (runId: string) =>
+    apiFetch<LegacyRunDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(runId)}`, {
+      headers: withLegacySessionHeaders(),
+    }),
+
+  getLegacyBatch: (batchId: string) =>
+    apiFetch<LegacyBatchDetailResponse>(`/v1/legacy/runs/${encodeURIComponent(batchId)}/batch`, {
+      headers: withLegacySessionHeaders(),
+    }),
+
+  getLegacyRunDownloadUrl: (runId: string, subdir?: string) => {
+    const sid = encodeURIComponent(getLegacySessionId())
+    const base = `/v1/legacy/runs/${encodeURIComponent(runId)}/download`
+    const query = subdir ? `subdir=${encodeURIComponent(subdir)}&sid=${sid}` : `sid=${sid}`
+    return `${base}?${query}`
+  },
+
+  getLegacyRunLogs: (runId: string) =>
+    apiFetch<PipelineLogEntryResponse[]>(`/v1/legacy/runs/${encodeURIComponent(runId)}/logs`),
 }
