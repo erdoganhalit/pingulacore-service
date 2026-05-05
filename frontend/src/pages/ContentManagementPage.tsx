@@ -100,7 +100,7 @@ interface InstanceFormState {
   values: Record<string, unknown>
 }
 
-const CONTENT_TABS: { id: ContentTab; label: string; Icon: typeof Layers3 }[] = [
+export const CONTENT_TABS: { id: ContentTab; label: string; Icon: typeof Layers3 }[] = [
   { id: 'properties', label: 'Property Definitions', Icon: Layers3 },
   { id: 'templates', label: 'YAML Templates', Icon: FolderTree },
   { id: 'instances', label: 'YAML Instances', Icon: Box },
@@ -1540,7 +1540,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
   )
 }
 
-function PropertiesTab({
+export function PropertiesTab({
   curriculumTree,
   allProperties,
   refreshProperties,
@@ -1729,7 +1729,7 @@ function PropertiesTab({
   )
 }
 
-function TemplatesTab({
+export function TemplatesTab({
   curriculumTree,
   templates,
   refreshTemplates,
@@ -1906,7 +1906,7 @@ function TemplatesTab({
   )
 }
 
-function InstancesTab({
+export function InstancesTab({
   templates,
   instances,
   refreshInstances,
@@ -2383,13 +2383,11 @@ function NodePropertyManagerModal({
 }
 
 export function ContentManagementPage() {
-  const [activeTab, setActiveTab] = useState<ContentTab>('properties')
   const [notice, setNotice] = useState<NoticeState | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState('')
   const [curriculumTree, setCurriculumTree] = useState<CurriculumNodeItem[]>([])
   const [properties, setProperties] = useState<PropertyDefinitionItem[]>([])
   const [templates, setTemplates] = useState<YamlTemplateItem[]>([])
-  const [instances, setInstances] = useState<YamlInstanceItem[]>([])
   const [loading, setLoading] = useState(true)
 
   const [treeCreateFolderId, setTreeCreateFolderId] = useState<string | null>(null)
@@ -2416,17 +2414,11 @@ export function ContentManagementPage() {
     return rows
   }
 
-  const loadInstances = async () => {
-    const rows = await api.listYamlInstances()
-    setInstances(rows)
-    return rows
-  }
-
   useEffect(() => {
     void (async () => {
       setLoading(true)
       try {
-        await Promise.all([loadCurriculumTree(), loadProperties(), loadTemplates(), loadInstances()])
+        await Promise.all([loadCurriculumTree(), loadProperties(), loadTemplates()])
       } catch (error) {
         setNotice({ tone: 'error', message: parseError(error, 'İçerik yönetimi verileri yüklenemedi') })
       } finally {
