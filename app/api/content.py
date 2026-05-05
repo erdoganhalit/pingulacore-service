@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import re
 from typing import Any
+from uuid import uuid4
 
 import yaml
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
+from app.agents.agent_service import AgentService
+from app.core.config import get_settings
 from app.db import repository
 from app.db.database import get_db
 from app.schemas.content import (
     ArtifactFavoriteRequest,
     ArtifactResponse,
+    HtmlReRenderRequest,
+    HtmlReRenderResponse,
     PropertyCreateRequest,
     PropertyResponse,
     PropertyUpdateRequest,
@@ -411,3 +417,53 @@ def get_asset(artifact_id: str, db: Session = Depends(get_db)) -> Response:
     except ClientError:
         raise HTTPException(status_code=404, detail="Asset bulunamadı")
     return Response(content=data, media_type=content_type or row.mime_type or "application/octet-stream")
+
+
+@router.post("/assets/re-render-html", response_model=HtmlReRenderResponse)
+def re_render_html_asset(
+    req: HtmlReRenderRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HtmlReRenderResponse:
+    settings = get_settings()
+    agents = AgentService(settings)
+    storage = ObjectStorageService(settings)
+
+    # Edited HTML often contains relative API paths such as /v1/assets/<id>.
+    # For file:// based local screenshot capture we need absolute URLs.
+    base_url = str(request.base_url).rstrip("/")
+    html_for_render = re.sub(
+        r'([("\'])/v1/assets/',
+        rf"\1{base_url}/v1/assets/",
+        req.html_content,
+    )
+
+    rendered_image_internal_path = agents.render_html_to_image(
+        html_for_render,
+        question_id=f"manual_render_{uuid4().hex[:12]}",
+    )
+
+    from pathlib import Path
+    rendered_internal = Path(rendered_image_internal_path)
+    if not rendered_internal.exists() or not rendered_internal.is_file():
+        raise HTTPException(status_code=500, detail="Render görüntüsü üretilemedi")
+
+    key = f"manual-renders/{uuid4().hex}/{rendered_internal.name}"
+    storage.upload_file(
+        bucket=settings.s3_rendered_bucket,
+        key=key,
+        path=rendered_internal,
+        content_type="image/png",
+    )
+    artifact = repository.create_artifact(
+        db,
+        kind="rendered_image",
+        object_bucket=settings.s3_rendered_bucket,
+        object_key=key,
+        mime_type="image/png",
+        source_pipeline_id=req.pipeline_id,
+    )
+    return HtmlReRenderResponse(
+        rendered_image_artifact_id=artifact.id,
+        rendered_image_url=f"/v1/assets/{artifact.id}",
+    )

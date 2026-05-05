@@ -165,4 +165,14 @@ class ArtifactResponse(BaseModel):
     updated_at: str | None = None
 
 
+class HtmlReRenderRequest(BaseModel):
+    html_content: str = Field(min_length=1)
+    pipeline_id: str | None = None
+
+
+class HtmlReRenderResponse(BaseModel):
+    rendered_image_artifact_id: str
+    rendered_image_url: str
+
+
 CurriculumNodeResponse.model_rebuild()

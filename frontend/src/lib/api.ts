@@ -17,6 +17,7 @@ import type {
   FavoriteCreatePayload,
   FavoriteItem,
   FullPipelineRunResponse,
+  HtmlReRenderResponse,
   LayoutToHtmlRunResponse,
   PipelineAgentLinkResponse,
   PipelineGetResponse,
@@ -346,6 +347,13 @@ export const api = {
 
   runFullPipeline: (payload: { yaml_instance_id: string; retry_config?: RetryConfig; stream_key?: string }) =>
     apiFetch<FullPipelineRunResponse>('/v1/pipelines/full/run', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(payload),
+    }),
+
+  reRenderHtmlAsset: (payload: { html_content: string; pipeline_id?: string }) =>
+    apiFetch<HtmlReRenderResponse>('/v1/assets/re-render-html', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(payload),

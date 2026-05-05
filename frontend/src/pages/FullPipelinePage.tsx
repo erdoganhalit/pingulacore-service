@@ -24,7 +24,6 @@ import type {
   PipelineGetResponse,
   PipelineLogEntryResponse,
   RetryConfig,
-  SubPipelineGetResponse,
   YamlInstanceItem,
   YamlTemplateItem,
 } from '../types'
@@ -56,6 +55,7 @@ export function FullPipelinePage() {
   const [retryConfig, setRetryConfig] = useState<RetryConfig>(EMPTY_RETRY)
 
   const [running, setRunning] = useState(false)
+  const [reRendering, setReRendering] = useState(false)
   const [error, setError] = useState('')
   const { lines, connected, done, active, renders, validations, connect } = useLogStream()
 
@@ -63,8 +63,6 @@ export function FullPipelinePage() {
   const [pipeline, setPipeline] = useState<PipelineGetResponse | null>(null)
   const [pipelineRuns, setPipelineRuns] = useState<PipelineAgentLinkResponse[]>([])
   const [pipelineLogs, setPipelineLogs] = useState<PipelineLogEntryResponse[]>([])
-  const [subPipelines, setSubPipelines] = useState<Record<string, SubPipelineGetResponse>>({})
-  const [subPipelineLogs, setSubPipelineLogs] = useState<Record<string, PipelineLogEntryResponse[]>>({})
 
   useEffect(() => {
     void (async () => {
@@ -91,7 +89,6 @@ export function FullPipelinePage() {
     if (!source) return
 
     const pipelineId = source.pipeline_id
-    const entries = Object.entries(source.sub_pipeline_ids)
 
     const [pipelineData, links, logs] = await Promise.all([
       api.getPipeline(pipelineId),
@@ -99,18 +96,9 @@ export function FullPipelinePage() {
       api.getPipelineLogs(pipelineId),
     ])
 
-    const subRows = await Promise.all(
-      entries.map(async ([name, id]) => {
-        const [row, subLogs] = await Promise.all([api.getSubPipeline(id), api.getSubPipelineLogs(id)])
-        return [name, { row, logs: subLogs }] as const
-      }),
-    )
-
     setPipeline(pipelineData)
     setPipelineRuns(links)
     setPipelineLogs(logs)
-    setSubPipelines(Object.fromEntries(subRows.map(([name, payload]) => [name, payload.row])))
-    setSubPipelineLogs(Object.fromEntries(subRows.map(([name, payload]) => [name, payload.logs])))
   }
 
   usePolling(
@@ -151,16 +139,38 @@ export function FullPipelinePage() {
   }
 
   const [htmlOverrideMain, setHtmlOverrideMain] = useState<string | null>(null)
+  const [renderedImageOverrideArtifactId, setRenderedImageOverrideArtifactId] = useState<string | null>(null)
   const [editorOpenMain, setEditorOpenMain] = useState(false)
-  const [subHtmlOverrides, setSubHtmlOverrides] = useState<Record<string, string>>({})
-  const [editorOpenSub, setEditorOpenSub] = useState<string | null>(null)
 
   const rawHtmlFromResponse = useMemo(() => pickHtmlContent(response?.question_html), [response])
   const htmlFromResponse = htmlOverrideMain ?? rawHtmlFromResponse
+  const fullRenderedImageArtifactId = renderedImageOverrideArtifactId ?? response?.rendered_image_artifact_id ?? ''
   const fullRenderedImageUrl = useMemo(() => {
-    if (!response?.rendered_image_artifact_id) return ''
-    return `/v1/assets/${encodeURIComponent(response.rendered_image_artifact_id)}`
-  }, [response?.rendered_image_artifact_id])
+    if (!fullRenderedImageArtifactId) return ''
+    return `/v1/assets/${encodeURIComponent(fullRenderedImageArtifactId)}`
+  }, [fullRenderedImageArtifactId])
+
+  useEffect(() => {
+    setRenderedImageOverrideArtifactId(null)
+    setHtmlOverrideMain(null)
+  }, [response?.pipeline_id])
+
+  const handleSaveEditedHtml = async (editedHtml: string) => {
+    setHtmlOverrideMain(editedHtml)
+    setEditorOpenMain(false)
+    setReRendering(true)
+    try {
+      const rendered = await api.reRenderHtmlAsset({
+        html_content: editedHtml,
+        pipeline_id: response?.pipeline_id,
+      })
+      setRenderedImageOverrideArtifactId(rendered.rendered_image_artifact_id)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'HTML kaydedildi ancak PNG yeniden render edilemedi.')
+    } finally {
+      setReRendering(false)
+    }
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -306,7 +316,7 @@ export function FullPipelinePage() {
                 <Modal open={editorOpenMain} onClose={() => setEditorOpenMain(false)} size="full" title="HTML Layout Editor">
                   <HtmlLayoutEditor
                     html={htmlFromResponse}
-                    onSave={(edited) => { setHtmlOverrideMain(edited); setEditorOpenMain(false) }}
+                    onSave={(edited) => { void handleSaveEditedHtml(edited) }}
                     onCancel={() => setEditorOpenMain(false)}
                   />
                 </Modal>
@@ -316,7 +326,9 @@ export function FullPipelinePage() {
             {/* Rendered Image */}
             {fullRenderedImageUrl && (
               <div className="bg-card rounded-xl border border-border p-5">
-                <h3 className="text-sm font-medium text-foreground mb-3">Full Pipeline Final Render PNG</h3>
+                <h3 className="text-sm font-medium text-foreground mb-3">
+                  Full Pipeline Final Render PNG {reRendering ? '(yeniden render ediliyor...)' : ''}
+                </h3>
                 <img
                   src={fullRenderedImageUrl}
                   alt="Full pipeline final render"
@@ -325,68 +337,6 @@ export function FullPipelinePage() {
                 />
               </div>
             )}
-
-            {/* Sub-Pipeline Cards */}
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
-              <div className="px-6 py-4 border-b border-border"
-                style={{ background: 'linear-gradient(to right, var(--accent), var(--muted))' }}>
-                <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>
-                  Sub-Pipeline Ara Çıktılar
-                </h3>
-              </div>
-              <div className="p-6 space-y-6">
-                {Object.entries(response.sub_pipeline_ids).map(([name, id]) => {
-                  const row = subPipelines[name]
-                  const rawHtml = pickHtmlContent((row?.output_json as Record<string, unknown> | undefined)?.html)
-                  const html = subHtmlOverrides[name] ?? rawHtml
-                  const subRenderedImageArtifactId = (row?.output_json as Record<string, unknown> | undefined)?.rendered_image_artifact_id
-                  const subRenderedImageUrl =
-                    typeof subRenderedImageArtifactId === 'string' ? `/v1/assets/${encodeURIComponent(subRenderedImageArtifactId)}` : ''
-                  return (
-                    <div key={id} className="border border-border rounded-xl p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-foreground">{name}</h4>
-                        {row ? <StatusBadge status={row.status} /> : (
-                          <span className="text-xs text-muted-foreground">Yükleniyor...</span>
-                        )}
-                      </div>
-                      <code className="text-xs text-muted-foreground font-mono">{id}</code>
-                      <div className="mt-3 space-y-2">
-                        <JsonPanel title={`${name} Output`} data={row?.output_json} />
-                        {name === 'layout_to_html' && html && (
-                          <>
-                            <HtmlViewer title="Ara Adım HTML" html={html} onEditClick={() => setEditorOpenSub(name)} />
-                            <Modal open={editorOpenSub === name} onClose={() => setEditorOpenSub(null)} size="full" title="HTML Layout Editor">
-                              <HtmlLayoutEditor
-                                html={html}
-                                onSave={(edited) => { setSubHtmlOverrides((prev) => ({ ...prev, [name]: edited })); setEditorOpenSub(null) }}
-                                onCancel={() => setEditorOpenSub(null)}
-                              />
-                            </Modal>
-                          </>
-                        )}
-                        {name === 'layout_to_html' && subRenderedImageUrl && (
-                          <div className="p-4 border border-border rounded-lg">
-                            <h5 className="text-xs font-medium text-foreground mb-2">Ara Adım Final Render PNG</h5>
-                            <img
-                              src={subRenderedImageUrl}
-                              alt="Sub pipeline final render"
-                              className="w-full rounded border border-border"
-                              style={{ maxWidth: 960 }}
-                            />
-                          </div>
-                        )}
-                        <PipelineLogsPanel
-                          title={`${name} Event Log`}
-                          logs={subPipelineLogs[name] ?? []}
-                          onRefresh={refreshAll}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
 
             {/* Pipeline Logs & Agent Runs */}
             <PipelineLogsPanel title="Pipeline Event Logları" logs={pipelineLogs} onRefresh={refreshAll} />

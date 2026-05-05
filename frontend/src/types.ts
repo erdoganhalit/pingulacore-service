@@ -238,6 +238,11 @@ export interface CatalogAssetDeleteResponse {
   deleted: boolean
 }
 
+export interface HtmlReRenderResponse {
+  rendered_image_artifact_id: string
+  rendered_image_url: string
+}
+
 export interface StoredJsonFileItem {
   filename: string
   is_favorite: boolean
