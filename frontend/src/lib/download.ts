@@ -1,3 +1,5 @@
+import { AUTH_UNAUTHORIZED_EVENT, getStoredAuthToken, setStoredAuthToken } from './api'
+
 type SaveFilePickerOptions = {
   suggestedName?: string
   types?: Array<{
@@ -73,14 +75,36 @@ export async function saveBlobAs(blob: Blob, suggestedName: string): Promise<'pi
   return 'fallback'
 }
 
+function withAuthHeaders(headers?: HeadersInit): Headers {
+  const merged = new Headers(headers)
+  const token = getStoredAuthToken()
+  if (token && !merged.has('Authorization')) {
+    merged.set('Authorization', `Bearer ${token}`)
+  }
+  return merged
+}
+
+export async function fetchBlobFromUrl(url: string, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(url, {
+    ...(init ?? {}),
+    headers: withAuthHeaders(init?.headers),
+  })
+  if (!res.ok) {
+    if (res.status === 401) {
+      setStoredAuthToken(null)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
+      }
+    }
+    throw new Error(`İndirme hatası (${res.status})`)
+  }
+  return res.blob()
+}
+
 /**
  * Fetch a URL and save its body. Used for ZIP endpoints and asset URLs.
  */
 export async function downloadFromUrl(url: string, suggestedName: string): Promise<'picker' | 'fallback'> {
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`İndirme hatası (${res.status})`)
-  }
-  const blob = await res.blob()
+  const blob = await fetchBlobFromUrl(url)
   return saveBlobAs(blob, suggestedName)
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, Download, FileIcon, Folder, FolderOpen, Image as ImageIcon } from 'lucide-react'
 
-import { downloadFromUrl } from '../lib/download'
+import { downloadFromUrl, fetchBlobFromUrl } from '../lib/download'
 import { api } from '../lib/api'
 import type { LegacyOutputNode } from '../types'
 
@@ -30,6 +30,7 @@ interface NodeRowProps {
 function NodeRow({ node, runId, depth }: NodeRowProps) {
   const [open, setOpen] = useState(depth < 1)
   const [downloading, setDownloading] = useState(false)
+  const [opening, setOpening] = useState(false)
 
   const handleDownloadFile = async () => {
     if (!node.url) return
@@ -56,6 +57,23 @@ function NodeRow({ node, runId, depth }: NodeRowProps) {
       }
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleOpenFile = async () => {
+    if (!node.url) return
+    setOpening(true)
+    try {
+      const blob = await fetchBlobFromUrl(node.url)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        console.error(e)
+      }
+    } finally {
+      setOpening(false)
     }
   }
 
@@ -108,14 +126,15 @@ function NodeRow({ node, runId, depth }: NodeRowProps) {
       <span className="w-4 shrink-0" />
       <FileIco className="w-4 h-4 shrink-0 text-muted-foreground" />
       {node.url ? (
-        <a
-          href={node.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm truncate flex-1 min-w-0 text-foreground hover:text-primary"
+        <button
+          type="button"
+          onClick={() => void handleOpenFile()}
+          disabled={opening}
+          className="text-sm truncate flex-1 min-w-0 text-left text-foreground hover:text-primary disabled:opacity-60"
+          title="Dosyayı yeni sekmede aç"
         >
           {node.name}
-        </a>
+        </button>
       ) : (
         <span className="text-sm truncate flex-1 min-w-0">{node.name}</span>
       )}
@@ -154,30 +173,71 @@ interface OutputPreviewGridProps {
 
 /** Top-level image preview grid — directly displays any image files at the top of the tree. */
 export function OutputPreviewGrid({ nodes }: OutputPreviewGridProps) {
-  const flatImages: LegacyOutputNode[] = []
-  const walk = (list: LegacyOutputNode[]) => {
-    for (const n of list) {
-      if (n.type === 'file' && isImage(n.name) && n.url) flatImages.push(n)
-      if (n.type === 'dir' && n.children) walk(n.children)
+  const flatImages = useMemo(() => {
+    const images: LegacyOutputNode[] = []
+    const walk = (list: LegacyOutputNode[]) => {
+      for (const n of list) {
+        if (n.type === 'file' && isImage(n.name) && n.url) images.push(n)
+        if (n.type === 'dir' && n.children) walk(n.children)
+      }
     }
-  }
-  walk(nodes)
+    walk(nodes)
+    return images
+  }, [nodes])
   if (flatImages.length === 0) return null
   return (
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {flatImages.slice(0, 12).map((img) => (
         <div key={img.rel_path} className="rounded-xl border border-border p-2 bg-background">
-          <a href={img.url ?? '#'} target="_blank" rel="noopener noreferrer">
-            <img
-              src={img.url ?? ''}
-              alt={img.name}
-              className="w-full rounded-lg border border-border"
-              loading="lazy"
-            />
-          </a>
+          <AuthorizedPreviewImage node={img} />
           <div className="mt-2 text-xs text-muted-foreground truncate">{img.rel_path}</div>
         </div>
       ))}
     </div>
+  )
+}
+
+function AuthorizedPreviewImage({ node }: { node: LegacyOutputNode }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!node.url) {
+      setSrc(null)
+      return
+    }
+    const fileUrl = node.url
+    let active = true
+    let objectUrl: string | null = null
+    ;(async () => {
+      try {
+        const blob = await fetchBlobFromUrl(fileUrl)
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setSrc(objectUrl)
+      } catch (error) {
+        if (active) {
+          setSrc(null)
+          console.error(error)
+        }
+      }
+    })()
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [node.url])
+
+  if (!src) {
+    return (
+      <div className="w-full aspect-[4/3] rounded-lg border border-border bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">
+        Görsel yüklenemedi
+      </div>
+    )
+  }
+
+  return (
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img src={src} alt={node.name} className="w-full rounded-lg border border-border" loading="lazy" />
+    </a>
   )
 }

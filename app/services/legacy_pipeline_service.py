@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import io
-import json as _json
+import mimetypes
 import os
 import re
 import shutil
@@ -20,11 +20,10 @@ import tempfile
 import threading
 import time
 import uuid
-import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Literal
+from typing import Any, Literal
 
 import yaml as _yaml
 from sqlalchemy.orm import Session
@@ -33,6 +32,7 @@ from app.core.config import Settings, get_settings
 from app.db import repository
 from app.db.database import SessionLocal
 from app.db.models import Pipeline
+from app.services.legacy_session_output_store import StoredOutputFile, get_legacy_output_store
 from app.services import log_stream_service
 from app.services.pipeline_log_service import write_pipeline_log
 
@@ -55,40 +55,77 @@ LEGACY_PIPELINES: dict[LegacyKind, LegacyPipelineDef] = {
 _BACKGROUND_TASKS: set[asyncio.Task] = set()
 
 
-UPLOAD_PREFIX = "uploads/"
-
-
-def _yaml_root(kind: LegacyKind, settings: Settings) -> Path:
-    if kind == "geometry":
-        return settings.legacy_geo_yaml_dir
-    if kind == "turkce":
-        return settings.legacy_turkce_configs_dir
-    raise RuntimeError(f"Bilinmeyen kind: {kind}")
-
-
-def _uploads_root(kind: LegacyKind, settings: Settings) -> Path:
-    return settings.legacy_uploads_dir / kind
-
-
-def _safe_relative(rel_path: str, root: Path) -> Path:
-    candidate = Path(rel_path)
-    if candidate.is_absolute() or any(part == ".." for part in candidate.parts):
+def _clean_yaml_path(raw: str) -> str:
+    rel = (raw or "").strip().replace("\\", "/").lstrip("/")
+    candidate = Path(rel)
+    if not rel or rel in {".", ".."}:
         raise ValueError("Geçersiz YAML yolu")
-    resolved = (root / candidate).resolve()
-    root_resolved = root.resolve()
-    if root_resolved not in resolved.parents and resolved != root_resolved:
-        raise ValueError("YAML kök dizinin dışında")
-    if not resolved.exists() or not resolved.is_file():
-        raise FileNotFoundError(f"YAML bulunamadı: {rel_path}")
-    return resolved
+    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+        raise ValueError("Geçersiz YAML yolu")
+    return candidate.as_posix()
 
 
-def _resolve_yaml_path(kind: LegacyKind, yaml_path: str, settings: Settings) -> Path:
-    """Resolve a YAML path against vendored root or — if prefixed `uploads/` — uploads dir."""
-    if yaml_path.startswith(UPLOAD_PREFIX):
-        rel = yaml_path[len(UPLOAD_PREFIX) :]
-        return _safe_relative(rel, _uploads_root(kind, settings))
-    return _safe_relative(yaml_path, _yaml_root(kind, settings))
+def _ensure_yaml_extension(name: str) -> str:
+    if Path(name).suffix.lower() not in {".yaml", ".yml"}:
+        raise ValueError("Yalnızca .yaml/.yml uzantıları kabul edilir")
+    return name
+
+
+def _validate_yaml_text(kind: LegacyKind, text: str) -> dict[str, Any]:
+    try:
+        data = _yaml.safe_load(text)
+    except _yaml.YAMLError as exc:
+        raise ValueError(f"YAML parse hatası: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("YAML kök öğesi sözlük olmalı")
+    schema_errors = _check_kind_schema(kind, data)
+    if schema_errors:
+        raise ValueError(schema_errors[0].message)
+    return data
+
+
+def _runtime_yaml_dir(kind: LegacyKind, settings: Settings) -> Path:
+    if kind == "turkce":
+        # Türkçe config'lerinde relative path kullanımı için config dizininde kal.
+        return settings.legacy_turkce_configs_dir
+    return settings.legacy_state_dir / "runtime_yaml" / kind
+
+
+def _materialize_runtime_yaml(kind: LegacyKind, yaml_path: str, content: str, settings: Settings) -> Path:
+    root = _runtime_yaml_dir(kind, settings)
+    root.mkdir(parents=True, exist_ok=True)
+    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(yaml_path).stem or "legacy")
+    fd, temp_path = tempfile.mkstemp(prefix=f"_db_{stem}_", suffix=".yaml", dir=str(root))
+    os.close(fd)
+    target = Path(temp_path)
+    target.write_text(content, encoding="utf-8")
+    return target
+
+
+def _get_yaml_row(kind: LegacyKind, yaml_path: str):
+    safe_path = _clean_yaml_path(yaml_path)
+    with SessionLocal() as db:
+        row = repository.get_legacy_yaml_instance_by_path(db, kind=kind, yaml_path=safe_path)
+        if row is None:
+            raise FileNotFoundError(f"YAML bulunamadı: {safe_path}")
+        return row
+
+
+def _next_unique_yaml_path(kind: LegacyKind, safe_name: str) -> str:
+    path = Path(safe_name)
+    stem = path.stem
+    suffix = path.suffix
+    parent = path.parent
+    with SessionLocal() as db:
+        if repository.get_legacy_yaml_instance_by_path(db, kind=kind, yaml_path=safe_name) is None:
+            return safe_name
+        n = 1
+        while True:
+            candidate_name = f"{stem}__{n}{suffix}"
+            candidate = (parent / candidate_name).as_posix() if str(parent) not in {"", "."} else candidate_name
+            if repository.get_legacy_yaml_instance_by_path(db, kind=kind, yaml_path=candidate) is None:
+                return candidate
+            n += 1
 
 
 def _is_kind_enabled(kind: LegacyKind, settings: Settings) -> bool:
@@ -98,8 +135,7 @@ def _is_kind_enabled(kind: LegacyKind, settings: Settings) -> bool:
     if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
         return False
     if kind == "geometry":
-        root = settings.legacy_geo_yaml_dir
-        return root.exists() and root.is_dir()
+        return True
     if kind == "turkce":
         required_dirs = (
             settings.legacy_turkce_configs_dir,
@@ -118,16 +154,6 @@ def _apply_legacy_environment(settings: Settings) -> None:
     os.environ["LEGACY_TURKCE_DATA_DIR"] = str(settings.legacy_turkce_data_dir)
 
 
-def _display_yaml_root(root: Path, repo_root: Path) -> str:
-    """Repo içinde kalan path'leri repo-relative göster; dış mount'lar mutlak kalır."""
-    try:
-        rel = root.resolve().relative_to(repo_root.resolve())
-    except ValueError:
-        return str(root)
-    rel_str = rel.as_posix()
-    return rel_str or "."
-
-
 def list_pipelines(settings: Settings | None = None) -> list[dict[str, Any]]:
     s = settings or get_settings()
     _apply_legacy_environment(s)
@@ -138,7 +164,6 @@ def list_pipelines(settings: Settings | None = None) -> list[dict[str, Any]]:
                 "kind": kind,
                 "label": defn.label,
                 "enabled": _is_kind_enabled(kind, s),
-                "yaml_root": _display_yaml_root(_yaml_root(kind, s), s.root_dir),
                 "default_params": {"difficulty": "orta"} if kind == "geometry" else {},
             }
         )
@@ -146,22 +171,208 @@ def list_pipelines(settings: Settings | None = None) -> list[dict[str, Any]]:
 
 
 def list_yaml_files(kind: LegacyKind, settings: Settings | None = None) -> list[str]:
+    _ = settings  # Backward-compatible signature
+    with SessionLocal() as db:
+        rows = repository.list_legacy_yaml_instances(db, kind)
+        return [row.yaml_path for row in rows]
+
+
+def migrate_file_based_yamls_to_db(settings: Settings | None = None) -> dict[str, Any]:
     s = settings or get_settings()
-    files: list[str] = []
-    for prefix, root in (("", _yaml_root(kind, s)), (UPLOAD_PREFIX, _uploads_root(kind, s))):
-        if not root.exists() or not root.is_dir():
-            continue
-        for path in root.rglob("*.y*ml"):
-            if not path.is_file():
+
+    sources: list[tuple[LegacyKind, Path, str]] = [
+        ("geometry", s.legacy_geo_yaml_dir, ""),
+        ("turkce", s.legacy_turkce_configs_dir, ""),
+        ("geometry", s.legacy_uploads_dir / "geometry", "uploads/"),
+        ("turkce", s.legacy_uploads_dir / "turkce", "uploads/"),
+    ]
+
+    migrated = 0
+    skipped_invalid = 0
+    skipped_unreadable = 0
+    scanned = 0
+
+    with SessionLocal() as db:
+        for kind, root, prefix in sources:
+            if not root.exists() or not root.is_dir():
                 continue
-            if path.suffix.lower() not in {".yaml", ".yml"}:
-                continue
-            if not _looks_like_pipeline_yaml(kind, path):
-                continue
-            rel = path.relative_to(root).as_posix()
-            files.append(prefix + rel)
-    files.sort()
-    return files
+            for path in sorted(root.rglob("*")):
+                if not path.is_file():
+                    continue
+                if path.suffix.lower() not in {".yaml", ".yml"}:
+                    continue
+                scanned += 1
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except Exception:
+                    skipped_unreadable += 1
+                    continue
+                try:
+                    _validate_yaml_text(kind, text)
+                except ValueError:
+                    skipped_invalid += 1
+                    continue
+
+                rel = path.relative_to(root).as_posix()
+                yaml_path = _clean_yaml_path(prefix + rel if prefix else rel)
+                repository.upsert_legacy_yaml_instance(
+                    db,
+                    kind=kind,
+                    yaml_path=yaml_path,
+                    content_text=text,
+                )
+                migrated += 1
+
+    return {
+        "scanned": scanned,
+        "migrated": migrated,
+        "skipped_invalid": skipped_invalid,
+        "skipped_unreadable": skipped_unreadable,
+    }
+
+
+@dataclass
+class _ExtractionIssue:
+    type: Literal["parse", "schema", "semantic"]
+    message: str
+    location: str | None = None
+
+
+@dataclass
+class _ExtractionOutcome:
+    filename: str
+    yaml_path: str | None
+    errors: list[_ExtractionIssue]
+    warnings: list[_ExtractionIssue]
+
+
+def _check_kind_schema(kind: LegacyKind, data: dict[str, Any]) -> list[_ExtractionIssue]:
+    errors: list[_ExtractionIssue] = []
+    if kind == "geometry":
+        if not isinstance(data.get("meta"), dict) or not isinstance(data.get("context"), dict):
+            errors.append(_ExtractionIssue(
+                type="schema",
+                message="Geometri YAML'ı `meta` ve `context` bloklarını içermeli",
+            ))
+    elif kind == "turkce":
+        has_generation_entry = any(k in data for k in ("template", "generation_plan", "context_generation_plan"))
+        has_topic_source = any(k in data for k in ("topic", "topics_file"))
+        if not (has_generation_entry and has_topic_source):
+            errors.append(_ExtractionIssue(
+                type="schema",
+                message="Türkçe YAML'ı `template`/`generation_plan`/`context_generation_plan` ve `topic`/`topics_file` içermeli",
+            ))
+    return errors
+
+
+def _semantic_check(kind: LegacyKind, content: str, settings: Settings) -> list[_ExtractionIssue]:
+    """Run kind-specific semantic checks on a saved YAML.
+
+    Failure here is reported as a non-fatal warning — the file is already valid YAML
+    and matches the structural schema; semantic problems may surface only at run time.
+    """
+    issues: list[_ExtractionIssue] = []
+    if kind == "geometry":
+        temp_path: Path | None = None
+        try:
+            temp_path = _materialize_runtime_yaml(kind, "_semantic_check.yaml", content, settings)
+            from legacy_app.geometri.pomodoro.yaml_loader import load_and_parse_template
+            load_and_parse_template(str(temp_path))
+        except Exception as exc:
+            issues.append(_ExtractionIssue(type="semantic", message=str(exc)))
+        finally:
+            if temp_path is not None:
+                with contextlib.suppress(Exception):
+                    temp_path.unlink(missing_ok=True)
+    return issues
+
+
+def extract_uploaded_yaml(
+    kind: LegacyKind,
+    *,
+    filename: str,
+    content: bytes,
+    settings: Settings | None = None,
+    overwrite: bool = True,
+) -> _ExtractionOutcome:
+    """Validate + persist a single uploaded YAML, collecting errors instead of raising.
+
+    Runs three layers: parse (UTF-8/YAML/extension), schema (kind-specific structure),
+    semantic (kind-specific deeper load). Parse + schema failures prevent persistence;
+    semantic failures are warnings (file is still saved).
+    """
+    s = settings or get_settings()
+    errors: list[_ExtractionIssue] = []
+    warnings: list[_ExtractionIssue] = []
+
+    if kind not in LEGACY_PIPELINES:
+        errors.append(_ExtractionIssue(type="parse", message=f"Bilinmeyen pipeline türü: {kind}"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    if len(content) > 2 * 1024 * 1024:
+        errors.append(_ExtractionIssue(type="parse", message="YAML dosyası 2 MB sınırını aşıyor"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    safe_name = Path(filename).name
+    if not safe_name or safe_name in {".", ".."}:
+        errors.append(_ExtractionIssue(type="parse", message="Geçersiz dosya adı"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+    if Path(safe_name).suffix.lower() not in {".yaml", ".yml"}:
+        errors.append(_ExtractionIssue(type="parse", message="Yalnızca .yaml/.yml uzantıları kabul edilir"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        errors.append(_ExtractionIssue(type="parse", message=f"YAML UTF-8 değil: {exc}"))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    try:
+        _validate_yaml_text(kind, text)
+    except ValueError as exc:
+        msg = str(exc)
+        err_type: Literal["parse", "schema", "semantic"] = "schema"
+        if "parse hatası" in msg or "UTF-8" in msg:
+            err_type = "parse"
+        errors.append(_ExtractionIssue(type=err_type, message=msg))
+        return _ExtractionOutcome(filename=filename, yaml_path=None, errors=errors, warnings=warnings)
+
+    base_name = _ensure_yaml_extension(_clean_yaml_path(safe_name))
+    yaml_path = base_name if overwrite else _next_unique_yaml_path(kind, base_name)
+
+    with SessionLocal() as db:
+        repository.upsert_legacy_yaml_instance(
+            db,
+            kind=kind,
+            yaml_path=yaml_path,
+            content_text=text,
+        )
+
+    warnings.extend(_semantic_check(kind, text, s))
+    return _ExtractionOutcome(
+        filename=filename,
+        yaml_path=yaml_path,
+        errors=errors,
+        warnings=warnings,
+    )
+
+
+def extract_uploaded_yamls(
+    kind: LegacyKind,
+    *,
+    files: list[tuple[str, bytes]],
+    settings: Settings | None = None,
+) -> list[_ExtractionOutcome]:
+    """Run extract_uploaded_yaml for each file; partial success — never raises per-file."""
+    s = settings or get_settings()
+    outcomes: list[_ExtractionOutcome] = []
+    for filename, content in files:
+        outcomes.append(
+            extract_uploaded_yaml(
+                kind, filename=filename, content=content, settings=s, overwrite=False
+            )
+        )
+    return outcomes
 
 
 def save_uploaded_yaml(
@@ -171,51 +382,17 @@ def save_uploaded_yaml(
     content: bytes,
     settings: Settings | None = None,
 ) -> str:
-    """Validate + persist an uploaded YAML under the kind's uploads dir.
+    """Single-file legacy upload; raises ValueError on the first error.
 
-    Returns the path token (`uploads/<filename>`) usable by `run()`.
+    Kept for backwards compatibility with the existing single-upload endpoint.
     """
-    s = settings or get_settings()
-    if kind not in LEGACY_PIPELINES:
-        raise ValueError(f"Bilinmeyen pipeline türü: {kind}")
-    if len(content) > 2 * 1024 * 1024:
-        raise ValueError("YAML dosyası 2 MB sınırını aşıyor")
-
-    safe_name = Path(filename).name
-    if not safe_name or safe_name in {".", ".."}:
-        raise ValueError("Geçersiz dosya adı")
-    if Path(safe_name).suffix.lower() not in {".yaml", ".yml"}:
-        raise ValueError("Yalnızca .yaml/.yml uzantıları kabul edilir")
-
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ValueError(f"YAML UTF-8 değil: {exc}") from exc
-    try:
-        data = _yaml.safe_load(text)
-    except _yaml.YAMLError as exc:
-        raise ValueError(f"YAML parse hatası: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValueError("YAML kök öğesi sözlük olmalı")
-
-    uploads_root = _uploads_root(kind, s)
-    uploads_root.mkdir(parents=True, exist_ok=True)
-    target = uploads_root / safe_name
-
-    # Mark with a kind-specific structural check so we don't accept arbitrary YAMLs
-    # that the pipeline can't run.
-    if kind == "geometry" and not (isinstance(data.get("meta"), dict) and isinstance(data.get("context"), dict)):
-        raise ValueError("Geometri YAML'ı `meta` ve `context` bloklarını içermeli")
-    if kind == "turkce":
-        has_generation_entry = any(k in data for k in ("template", "generation_plan", "context_generation_plan"))
-        has_topic_source = any(k in data for k in ("topic", "topics_file"))
-        if not (has_generation_entry and has_topic_source):
-            raise ValueError(
-                "Türkçe YAML'ı `template`/`generation_plan`/`context_generation_plan` ve `topic`/`topics_file` içermeli"
-            )
-
-    target.write_text(text, encoding="utf-8")
-    return UPLOAD_PREFIX + safe_name
+    outcome = extract_uploaded_yaml(
+        kind, filename=filename, content=content, settings=settings, overwrite=True
+    )
+    if outcome.errors:
+        raise ValueError(outcome.errors[0].message)
+    assert outcome.yaml_path is not None
+    return outcome.yaml_path
 
 
 def inspect_yaml(
@@ -229,20 +406,27 @@ def inspect_yaml(
     boş varyant listesi döner ama dosyanın var/geçerli olduğu kontrol edilir.
     """
     s = settings or get_settings()
-    abs_path = _resolve_yaml_path(kind, yaml_path, s)
+    row = _get_yaml_row(kind, yaml_path)
+    safe_path = _clean_yaml_path(yaml_path)
 
     if kind == "geometry":
+        temp_path: Path | None = None
         try:
+            temp_path = _materialize_runtime_yaml(kind, safe_path, row.content_text, s)
             from legacy_app.geometri.pomodoro.yaml_loader import load_and_parse_template
             from legacy_app.geometri.pomodoro.variant_rotation import get_variant_names
 
-            template = load_and_parse_template(str(abs_path))
+            template = load_and_parse_template(str(temp_path))
             names = get_variant_names(template)
         except Exception:
             names = []
+        finally:
+            if temp_path is not None:
+                with contextlib.suppress(Exception):
+                    temp_path.unlink(missing_ok=True)
         return {
             "kind": kind,
-            "yaml_path": yaml_path,
+            "yaml_path": safe_path,
             "has_variants": bool(names),
             "variant_count": len(names),
             "variant_names": names,
@@ -250,7 +434,7 @@ def inspect_yaml(
 
     return {
         "kind": kind,
-        "yaml_path": yaml_path,
+        "yaml_path": safe_path,
         "has_variants": False,
         "variant_count": 0,
         "variant_names": [],
@@ -262,16 +446,23 @@ def read_yaml_content(
     yaml_path: str,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    s = settings or get_settings()
-    abs_path = _resolve_yaml_path(kind, yaml_path, s)
-    text = abs_path.read_text(encoding="utf-8")
-    is_repo = not yaml_path.startswith(UPLOAD_PREFIX)
+    _ = settings  # Backward-compatible signature
+    row = _get_yaml_row(kind, yaml_path)
     return {
         "kind": kind,
-        "yaml_path": yaml_path,
-        "content": text,
-        "is_repo_yaml": is_repo,
+        "yaml_path": row.yaml_path,
+        "content": row.content_text,
+        "is_repo_yaml": False,
     }
+
+
+def delete_yaml_content(
+    kind: LegacyKind,
+    yaml_path: str,
+) -> bool:
+    safe_path = _clean_yaml_path(yaml_path)
+    with SessionLocal() as db:
+        return repository.delete_legacy_yaml_instance(db, kind=kind, yaml_path=safe_path)
 
 
 def write_yaml_content(
@@ -280,74 +471,67 @@ def write_yaml_content(
     content: str,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    """Repo YAML veya uploads/ YAML dosyasını overwrite eder.
-
-    Yazmadan önce structural validation; geçersizse ValueError. Yazmadan önce orijinal
-    içerik `<state>/yaml_backups/<kind>/<stem>.<ts>.bak.yaml` olarak yedeklenir.
-    """
+    """YAML içeriğini veritabanında günceller (dosya sistemi yerine DB-first)."""
     s = settings or get_settings()
-    abs_path = _resolve_yaml_path(kind, yaml_path, s)
 
-    try:
-        data = _yaml.safe_load(content)
-    except _yaml.YAMLError as exc:
-        raise ValueError(f"YAML parse hatası: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValueError("YAML kök öğesi sözlük olmalı")
-
-    if kind == "geometry" and not (isinstance(data.get("meta"), dict) and isinstance(data.get("context"), dict)):
-        raise ValueError("Geometri YAML'ı `meta` ve `context` bloklarını içermeli")
-    if kind == "turkce":
-        has_generation_entry = any(k in data for k in ("template", "generation_plan", "context_generation_plan"))
-        has_topic_source = any(k in data for k in ("topic", "topics_file"))
-        if not (has_generation_entry and has_topic_source):
-            raise ValueError(
-                "Türkçe YAML'ı `template`/`generation_plan`/`context_generation_plan` ve `topic`/`topics_file` içermeli"
-            )
+    safe_path = _clean_yaml_path(yaml_path)
+    _validate_yaml_text(kind, content)
 
     backup_root = s.legacy_state_dir / "yaml_backups" / kind
     backup_root.mkdir(parents=True, exist_ok=True)
-    if abs_path.exists():
+    with SessionLocal() as db:
+        row = repository.get_legacy_yaml_instance_by_path(db, kind=kind, yaml_path=safe_path)
+        if row is None:
+            raise FileNotFoundError(f"YAML bulunamadı: {safe_path}")
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-        backup_target = backup_root / f"{abs_path.stem}.{ts}.bak.yaml"
-        try:
-            shutil.copy2(abs_path, backup_target)
-        except Exception:
-            pass
+        backup_target = backup_root / f"{Path(safe_path).stem}.{ts}.bak.yaml"
+        with contextlib.suppress(Exception):
+            backup_target.write_text(row.content_text or "", encoding="utf-8")
+        repository.upsert_legacy_yaml_instance(
+            db,
+            kind=kind,
+            yaml_path=safe_path,
+            content_text=content,
+        )
 
-    abs_path.write_text(content, encoding="utf-8")
     return {
         "kind": kind,
-        "yaml_path": yaml_path,
+        "yaml_path": safe_path,
         "content": content,
-        "is_repo_yaml": not yaml_path.startswith(UPLOAD_PREFIX),
+        "is_repo_yaml": False,
     }
 
 
-def _looks_like_pipeline_yaml(kind: LegacyKind, path: Path) -> bool:
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            data = _yaml.safe_load(fh) or {}
-    except Exception:
-        return False
-    if not isinstance(data, dict):
-        return False
+def _create_ephemeral_run_dir(kind: LegacyKind, run_id: str, settings: Settings) -> Path:
+    root = settings.legacy_state_dir / "legacy_run_tmp"
+    root.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix=f"{kind}_{run_id[:8]}_", dir=str(root)))
 
-    if kind == "geometry":
-        return isinstance(data.get("meta"), dict) and isinstance(data.get("context"), dict)
 
-    if kind == "turkce":
-        has_generation_entry = any(
-            key in data for key in ("template", "generation_plan", "context_generation_plan")
+def _collect_storeable_output_files(run_dir: Path) -> list[StoredOutputFile]:
+    if not run_dir.exists() or not run_dir.is_dir():
+        return []
+    output: list[StoredOutputFile] = []
+    for path in sorted(run_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        suffix = path.suffix.lower()
+        if suffix not in {".json", ".html", ".png"}:
+            continue
+        try:
+            content = path.read_bytes()
+        except Exception:
+            continue
+        rel = path.relative_to(run_dir).as_posix()
+        output.append(
+            StoredOutputFile(
+                rel_path=rel,
+                content=content,
+                mime_type=mimetypes.guess_type(path.name)[0] or "application/octet-stream",
+                size=len(content),
+            )
         )
-        has_topic_source = any(key in data for key in ("topic", "topics_file"))
-        return has_generation_entry and has_topic_source
-
-    return False
-
-
-def _run_dir_for(kind: LegacyKind, run_id: str, settings: Settings) -> Path:
-    return settings.runs_dir / f"legacy_{kind}" / run_id
+    return output
 
 
 # -----------------------------------------------------------------------------
@@ -680,7 +864,8 @@ class _BatchSubRun:
     run_id: str
     kind: LegacyKind
     yaml_path: str
-    yaml_abs: Path
+    yaml_content: str
+    session_id: str
     variant_name: str | None
     params: dict[str, Any]
     run_dir: Path
@@ -692,13 +877,11 @@ class LegacyPipelineService:
         self.settings = settings or get_settings()
         _apply_legacy_environment(self.settings)
 
-    def _resolve_yaml(self, kind: LegacyKind, yaml_path: str) -> Path:
-        return _resolve_yaml_path(kind, yaml_path, self.settings)
-
     async def run_batch(
         self,
         *,
         kind: LegacyKind,
+        session_id: str,
         items: list[dict[str, Any]],
         parallelism: int | None,
         stream_key: str | None,
@@ -707,7 +890,7 @@ class LegacyPipelineService:
             raise ValueError(f"Bilinmeyen pipeline: {kind}")
         if not _is_kind_enabled(kind, self.settings):
             raise RuntimeError(
-                f"{kind} legacy pipeline yapılandırılmamış (GOOGLE_API_KEY ve YAML dizini gerekli)"
+                f"{kind} legacy pipeline yapılandırılmamış (GOOGLE_API_KEY ve gerekli dizinler)"
             )
         if not items:
             raise ValueError("items boş olamaz")
@@ -717,10 +900,12 @@ class LegacyPipelineService:
 
         sub_runs: list[_BatchSubRun] = []
         for item in items:
-            yaml_path = item.get("yaml_path") or ""
+            yaml_path = _clean_yaml_path(item.get("yaml_path") or "")
             params = dict(item.get("params") or {})
             variants: list[str] = list(item.get("variants") or [])
-            yaml_abs = self._resolve_yaml(kind, yaml_path)
+            row = repository.get_legacy_yaml_instance_by_path(self.db, kind=kind, yaml_path=yaml_path)
+            if row is None:
+                raise FileNotFoundError(f"YAML bulunamadı: {yaml_path}")
 
             variant_iter: list[str | None] = variants if variants else [None]
             for variant_name in variant_iter:
@@ -741,17 +926,16 @@ class LegacyPipelineService:
                 self.db.commit()
                 self.db.refresh(pipeline_row)
                 run_id = pipeline_row.id
-                run_dir = _run_dir_for(kind, run_id, self.settings)
-                run_dir.mkdir(parents=True, exist_ok=True)
                 sub_runs.append(
                     _BatchSubRun(
                         run_id=run_id,
                         kind=kind,
                         yaml_path=yaml_path,
-                        yaml_abs=yaml_abs,
+                        yaml_content=row.content_text,
+                        session_id=session_id,
                         variant_name=variant_name,
                         params=row_params,
-                        run_dir=run_dir,
+                        run_dir=_create_ephemeral_run_dir(kind, run_id, self.settings),
                     )
                 )
 
@@ -843,12 +1027,17 @@ class LegacyPipelineService:
         )
 
         error_msg: str | None = None
+        runtime_yaml: Path | None = None
+        output_store = get_legacy_output_store()
+        store_result: dict[str, Any] | None = None
 
         def _invoke_geometry_in_thread() -> None:
             with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
                 try:
+                    if runtime_yaml is None:
+                        raise RuntimeError("Runtime YAML üretilemedi")
                     _run_geometry_sync(
-                        yaml_abs=sub.yaml_abs,
+                        yaml_abs=runtime_yaml,
                         run_dir=sub.run_dir,
                         difficulty=str(sub.params.get("difficulty") or "orta"),
                         variant_name=sub.variant_name,
@@ -860,8 +1049,10 @@ class LegacyPipelineService:
 
         def _invoke_turkce_in_thread() -> None:
             try:
+                if runtime_yaml is None:
+                    raise RuntimeError("Runtime YAML üretilemedi")
                 _run_turkce_subprocess(
-                    yaml_abs=sub.yaml_abs,
+                    yaml_abs=runtime_yaml,
                     run_dir=sub.run_dir,
                     stdout_capture=stdout_capture,
                     stderr_capture=stderr_capture,
@@ -872,6 +1063,7 @@ class LegacyPipelineService:
                 stderr_capture.flush()
 
         try:
+            runtime_yaml = _materialize_runtime_yaml(sub.kind, sub.yaml_path, sub.yaml_content, self.settings)
             if sub.kind == "geometry":
                 await asyncio.wait_for(
                     asyncio.to_thread(_invoke_geometry_in_thread),
@@ -890,6 +1082,19 @@ class LegacyPipelineService:
             error_msg = f"Timeout ({timeout_seconds}s) aşıldı"
         except Exception as exc:
             error_msg = f"{type(exc).__name__}: {exc}"
+        finally:
+            files = _collect_storeable_output_files(sub.run_dir)
+            store_result = output_store.put_run_package(
+                session_id=sub.session_id,
+                run_id=sub.run_id,
+                kind=sub.kind,
+                files=files,
+            )
+            with contextlib.suppress(Exception):
+                shutil.rmtree(sub.run_dir, ignore_errors=True)
+            if runtime_yaml is not None:
+                with contextlib.suppress(Exception):
+                    runtime_yaml.unlink(missing_ok=True)
 
         status = "success" if error_msg is None else "failed"
 
@@ -904,7 +1109,7 @@ class LegacyPipelineService:
                     pipeline_id=sub.run_id,
                     sub_pipeline_id=None,
                     level="info" if status == "success" else "error",
-                    details={"error": error_msg, "batch_id": batch_id},
+                    details={"error": error_msg, "batch_id": batch_id, "output_store": store_result},
                     stream_key=stream_key,
                 )
             except Exception:
@@ -916,9 +1121,16 @@ class LegacyPipelineService:
         finally:
             bg_db.close()
 
-    def _row_to_detail(self, row: Pipeline, kind: LegacyKind) -> dict[str, Any]:
-        run_dir = _run_dir_for(kind, row.id, self.settings)
-        outputs = _collect_outputs(run_dir)
+    def _row_to_detail(self, row: Pipeline, kind: LegacyKind, session_id: str) -> dict[str, Any]:
+        output_store = get_legacy_output_store()
+        outputs, outputs_available, outputs_message = output_store.get_output_nodes(
+            session_id=session_id,
+            run_id=row.id,
+            output_base_url=f"/v1/legacy/runs/{row.id}/outputs",
+        )
+        if row.status == "running" and not outputs:
+            outputs_available = True
+            outputs_message = None
         retry_cfg = repository.parse_json(row.retry_config_json) or {}
         variant_name = retry_cfg.get("variant_name") if isinstance(retry_cfg, dict) else None
         return {
@@ -931,9 +1143,11 @@ class LegacyPipelineService:
             "started_at": row.created_at.isoformat() if row.created_at else "",
             "finished_at": row.finished_at.isoformat() if row.finished_at else None,
             "outputs": outputs,
+            "outputs_available": outputs_available,
+            "outputs_message": outputs_message,
         }
 
-    def get_run_detail(self, run_id: str) -> dict[str, Any] | None:
+    def get_run_detail(self, run_id: str, session_id: str) -> dict[str, Any] | None:
         row = self.db.get(Pipeline, run_id)
         if row is None or not str(row.mode).startswith("legacy_"):
             return None
@@ -943,9 +1157,9 @@ class LegacyPipelineService:
             kind = "turkce"
         else:
             return None
-        return self._row_to_detail(row, kind)
+        return self._row_to_detail(row, kind, session_id)
 
-    def get_batch_detail(self, batch_id: str) -> dict[str, Any] | None:
+    def get_batch_detail(self, batch_id: str, session_id: str) -> dict[str, Any] | None:
         rows = (
             self.db.query(Pipeline)
             .filter(Pipeline.mode.in_(["legacy_geometry", "legacy_turkce"]))
@@ -956,90 +1170,9 @@ class LegacyPipelineService:
         if not rows:
             return None
         kind: LegacyKind = "geometry" if rows[0].mode == "legacy_geometry" else "turkce"
-        runs = [self._row_to_detail(row, kind) for row in rows]
+        runs = [self._row_to_detail(row, kind, session_id) for row in rows]
         return {
             "batch_id": batch_id,
             "kind": kind,
             "runs": runs,
         }
-
-
-def _collect_outputs(run_dir: Path) -> list[dict[str, Any]]:
-    """run_dir altındaki dosyaları ağaç hâlinde döndürür.
-
-    Üst seviye node'lar `run_dir`in çocuklarıdır; her node ya `dir` (children dolu) ya da
-    `file` (url + size). `rel_path` run_dir'e göre POSIX yoludur.
-    """
-    if not run_dir.exists():
-        return []
-    settings = get_settings()
-    runs_root_parent = settings.runs_dir.parent.resolve()
-
-    def build_node(path: Path) -> dict[str, Any]:
-        try:
-            rel_to_run = path.relative_to(run_dir).as_posix()
-        except ValueError:
-            rel_to_run = path.name
-        if path.is_dir():
-            children = [build_node(child) for child in sorted(path.iterdir())]
-            return {
-                "name": path.name,
-                "type": "dir",
-                "rel_path": rel_to_run,
-                "children": children,
-            }
-        try:
-            rel_to_root = path.resolve().relative_to(runs_root_parent)
-            url = f"/v1/assets/{rel_to_root.as_posix()}"
-        except ValueError:
-            url = None
-        return {
-            "name": path.name,
-            "type": "file",
-            "rel_path": rel_to_run,
-            "url": url,
-            "size": path.stat().st_size,
-        }
-
-    return [build_node(child) for child in sorted(run_dir.iterdir())]
-
-
-def iter_zip_stream(run_dir: Path, subdir: str | None = None) -> tuple[Iterator[bytes], str]:
-    """run_dir (veya alt klasörünü) zip olarak stream üretir.
-
-    Returns (chunk_iterator, suggested_filename).
-    """
-    if not run_dir.exists() or not run_dir.is_dir():
-        raise FileNotFoundError("Run dizini bulunamadı")
-
-    target = run_dir
-    if subdir:
-        candidate = (run_dir / subdir).resolve()
-        if run_dir.resolve() not in candidate.parents and candidate != run_dir.resolve():
-            raise ValueError("Geçersiz subdir")
-        if not candidate.exists() or not candidate.is_dir():
-            raise FileNotFoundError("Alt klasör bulunamadı")
-        target = candidate
-
-    suggested = (subdir.replace("/", "_") if subdir else run_dir.name) + ".zip"
-    files = sorted(p for p in target.rglob("*") if p.is_file())
-
-    def iterator() -> Iterator[bytes]:
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for path in files:
-                arcname = path.relative_to(target).as_posix()
-                zf.write(path, arcname=arcname)
-        buffer.seek(0)
-        while True:
-            chunk = buffer.read(64 * 1024)
-            if not chunk:
-                break
-            yield chunk
-
-    return iterator(), suggested
-
-
-def get_run_dir(kind: LegacyKind, run_id: str, settings: Settings | None = None) -> Path:
-    s = settings or get_settings()
-    return _run_dir_for(kind, run_id, s)

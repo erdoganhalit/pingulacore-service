@@ -24,6 +24,7 @@ import { ApiError, api } from '../lib/api'
 import { downloadFromUrl } from '../lib/download'
 import { randomUuid } from '../lib/uuid'
 import type {
+  FileExtractionResult,
   LegacyBatchDetailResponse,
   LegacyPipelineDescriptor,
   LegacyPipelineKind,
@@ -71,6 +72,7 @@ export function LegacyPipelinePage() {
   const [batchDetail, setBatchDetail] = useState<LegacyBatchDetailResponse | null>(null)
   const [uploadError, setUploadError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadResults, setUploadResults] = useState<FileExtractionResult[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -273,15 +275,22 @@ export function LegacyPipelinePage() {
     }
   }
 
-  const handleUpload = async (file: File | null | undefined) => {
-    if (!file || !selectedKind) return
+  const handleUpload = async (fileList: FileList | null | undefined) => {
+    if (!fileList || fileList.length === 0 || !selectedKind) return
+    const files = Array.from(fileList)
     setUploadError('')
+    setUploadResults([])
     setUploading(true)
     try {
-      const res = await api.uploadLegacyYaml(selectedKind, file)
+      const res = await api.uploadLegacyYamls(selectedKind, files)
+      setUploadResults(res.results)
       await reloadYamlFiles(selectedKind)
-      // Yüklenen dosyayı otomatik seç.
-      void toggleSelect(res.yaml_path)
+      // Hatasız yüklenen dosyaları otomatik seç.
+      for (const r of res.results) {
+        if (!r.errors.length && r.yaml_path) {
+          void toggleSelect(r.yaml_path)
+        }
+      }
     } catch (e) {
       setUploadError(e instanceof ApiError ? e.message : 'YAML yüklenemedi')
     } finally {
@@ -416,7 +425,6 @@ export function LegacyPipelinePage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">YAML kökü (repo): {p.yaml_root}/</p>
                   </div>
                 </button>
               )
@@ -455,8 +463,9 @@ export function LegacyPipelinePage() {
                     <input
                       ref={fileInputRef}
                       type="file"
+                      multiple
                       accept=".yaml,.yml,application/x-yaml,text/yaml"
-                      onChange={(e) => void handleUpload(e.target.files?.[0])}
+                      onChange={(e) => void handleUpload(e.target.files)}
                       className="hidden"
                     />
                     <button
@@ -473,6 +482,60 @@ export function LegacyPipelinePage() {
                 </div>
 
                 {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
+
+                {uploadResults.length > 0 && (
+                  <div className="rounded-xl border-2 bg-background overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                    <div className="px-3 py-2 text-xs font-medium border-b" style={{ borderColor: 'var(--border)' }}>
+                      Yükleme sonuçları — {uploadResults.filter((r) => !r.errors.length).length} başarılı,{' '}
+                      {uploadResults.filter((r) => r.errors.length).length} hatalı
+                      <button
+                        type="button"
+                        onClick={() => setUploadResults([])}
+                        className="ml-2 text-muted-foreground hover:text-foreground"
+                      >
+                        (kapat)
+                      </button>
+                    </div>
+                    <ul className="max-h-56 overflow-auto divide-y" style={{ borderColor: 'var(--border)' }}>
+                      {uploadResults.map((r) => {
+                        const ok = r.errors.length === 0
+                        return (
+                          <li key={r.filename} className="px-3 py-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className={ok ? 'text-emerald-600' : 'text-destructive'}>
+                                {ok ? '✓' : '✗'}
+                              </span>
+                              <span className="font-medium truncate">{r.filename}</span>
+                              {ok && r.yaml_path && (
+                                <span className="text-xs text-muted-foreground truncate">→ {r.yaml_path}</span>
+                              )}
+                            </div>
+                            {r.errors.length > 0 && (
+                              <ul className="mt-1 ml-5 space-y-0.5">
+                                {r.errors.map((e, i) => (
+                                  <li key={i} className="text-xs text-destructive">
+                                    <span className="uppercase font-semibold mr-1">[{e.type}]</span>
+                                    {e.message}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {r.warnings.length > 0 && (
+                              <ul className="mt-1 ml-5 space-y-0.5">
+                                {r.warnings.map((w, i) => (
+                                  <li key={i} className="text-xs text-amber-600">
+                                    <span className="uppercase font-semibold mr-1">[{w.type}]</span>
+                                    {w.message}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -712,7 +775,7 @@ export function LegacyPipelinePage() {
                     <button
                       type="button"
                       onClick={() => void handleDownloadAll(r.run_id)}
-                      disabled={r.outputs.length === 0}
+                      disabled={r.outputs_available === false || r.outputs.length === 0}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm hover:bg-accent transition-colors disabled:opacity-40"
                       style={{ borderColor: 'var(--border)' }}
                     >
@@ -724,6 +787,12 @@ export function LegacyPipelinePage() {
                   {r.error && (
                     <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-red-50 text-red-700 border border-red-200">
                       {r.error}
+                    </div>
+                  )}
+
+                  {r.outputs_available === false && (
+                    <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-amber-50 text-amber-800 border border-amber-200">
+                      {r.outputs_message || 'Bu oturumun çıktıları süresi dolduğu için erişilemiyor.'}
                     </div>
                   )}
 
