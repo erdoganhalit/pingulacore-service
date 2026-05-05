@@ -7,6 +7,7 @@ import {
   FilePlus2,
   GitBranch,
   Home,
+  Image as ImageIcon,
   LogOut,
   ShieldCheck,
   Sparkles,
@@ -17,6 +18,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
+import { CatalogAssetsPage } from './pages/CatalogAssetsPage'
 import { ContentManagementPage } from './pages/ContentManagementPage'
 import { FilesPage } from './pages/FilesPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
@@ -35,6 +37,7 @@ const navigation = [
   { to: '/sub-pipelines', label: 'Sub-Pipelines', Icon: Split, end: false },
   { to: '/agents', label: 'Standalone Agents', Icon: Bot, end: false },
   { to: '/legacy', label: 'Legacy Pipeline', Icon: Archive, end: false },
+  { to: '/catalog-assets', label: 'Katalog Görselleri', Icon: ImageIcon, end: false },
   { to: '/content', label: 'Müfredat Yönetimi', Icon: BookOpen, end: false },
   { to: '/content/yaml-create', label: 'YAML Oluştur', Icon: FilePlus2, end: false },
 ]
@@ -163,6 +166,7 @@ function AppLayout() {
           <Route path="/files" element={<FilesPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/legacy" element={<LegacyPipelinePage />} />
+          <Route path="/catalog-assets" element={<CatalogAssetsPage />} />
           <Route path="/content" element={<ContentManagementPage />} />
           <Route path="/content/yaml-create" element={<YamlCreatePage />} />
           <Route path="/templates" element={<Navigate to="/content" replace />} />

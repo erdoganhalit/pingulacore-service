@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
+from app.api.catalog_assets import router as catalog_assets_router
 from app.api.explorer import router as explorer_router
 from app.api.agent import router as agent_router
 from app.api.legacy import router as legacy_router
@@ -37,3 +38,4 @@ app.include_router(content_router)
 app.include_router(logs_router)
 app.include_router(explorer_router)
 app.include_router(legacy_router)
+app.include_router(catalog_assets_router)

@@ -211,6 +211,33 @@ export interface ArtifactItem {
   updated_at?: string | null
 }
 
+export interface CatalogAssetItem {
+  key: string
+  name: string
+  size: number
+  last_modified?: string | null
+  mime_type?: string | null
+  content_url: string
+}
+
+export interface CatalogAssetListResponse {
+  items: CatalogAssetItem[]
+  next_cursor?: string | null
+  total_count: number
+  query?: string | null
+}
+
+export interface CatalogAssetUploadResponse {
+  key: string
+  size: number
+  mime_type: string
+}
+
+export interface CatalogAssetDeleteResponse {
+  key: string
+  deleted: boolean
+}
+
 export interface StoredJsonFileItem {
   filename: string
   is_favorite: boolean

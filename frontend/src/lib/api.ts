@@ -6,6 +6,9 @@ import type {
   LoginRequest,
   RegisterRequest,
   ArtifactItem,
+  CatalogAssetDeleteResponse,
+  CatalogAssetListResponse,
+  CatalogAssetUploadResponse,
   CurriculumNodeItem,
   ExplorerFavoritePayload,
   ExplorerFileReadResponse,
@@ -449,6 +452,31 @@ export const api = {
     const suffix = kind ? `?kind=${encodeURIComponent(kind)}` : ''
     return apiFetch<FavoriteItem[]>(`/v1/favorites${suffix}`)
   },
+
+  listCatalogAssets: (params?: { cursor?: string; limit?: number; query?: string }) =>
+    apiFetch<CatalogAssetListResponse>(
+      withQuery('/v1/catalog-assets', {
+        cursor: params?.cursor,
+        limit: params?.limit ?? 10,
+        query: params?.query,
+      }),
+    ),
+
+  uploadCatalogAsset: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiFetch<CatalogAssetUploadResponse>('/v1/catalog-assets', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  deleteCatalogAsset: (key: string) =>
+    apiFetch<CatalogAssetDeleteResponse>(`/v1/catalog-assets/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    }),
+
+  getCatalogAssetContentUrl: (key: string) => `/v1/catalog-assets/${encodeURIComponent(key)}/content`,
 
   getFavorite: (favoriteId: number) => apiFetch<FavoriteItem>(`/v1/favorites/${favoriteId}`),
 

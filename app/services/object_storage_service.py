@@ -5,6 +5,7 @@ from typing import Any
 
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 from app.core.config import Settings, get_settings
 
@@ -46,3 +47,39 @@ class ObjectStorageService:
         obj: dict[str, Any] = self.client.get_object(Bucket=bucket, Key=key)
         data = obj["Body"].read()
         return data, obj.get("ContentType")
+
+    def list_objects(self, *, bucket: str, prefix: str | None = None) -> list[dict[str, Any]]:
+        kwargs: dict[str, Any] = {"Bucket": bucket, "MaxKeys": 1000}
+        if prefix:
+            kwargs["Prefix"] = prefix
+        items: list[dict[str, Any]] = []
+        while True:
+            resp: dict[str, Any] = self.client.list_objects_v2(**kwargs)
+            for row in resp.get("Contents", []):
+                items.append(
+                    {
+                        "key": str(row.get("Key") or ""),
+                        "size": int(row.get("Size") or 0),
+                        "last_modified": row.get("LastModified"),
+                    }
+                )
+            if not resp.get("IsTruncated"):
+                break
+            kwargs["ContinuationToken"] = resp.get("NextContinuationToken")
+        return items
+
+    def object_exists(self, *, bucket: str, key: str) -> bool:
+        try:
+            self.client.head_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError as exc:
+            status = int(exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0))
+            if status in {404, 400, 403}:
+                return False
+            raise
+
+    def delete_object(self, *, bucket: str, key: str) -> bool:
+        if not self.object_exists(bucket=bucket, key=key):
+            return False
+        self.client.delete_object(Bucket=bucket, Key=key)
+        return True

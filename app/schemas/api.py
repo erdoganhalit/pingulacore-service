@@ -430,4 +430,31 @@ class LegacyBatchDetailResponse(BaseModel):
     runs: list[LegacyRunDetail] = Field(default_factory=list)
 
 
+class CatalogAssetItem(BaseModel):
+    key: str
+    name: str
+    size: int
+    last_modified: str | None = None
+    mime_type: str | None = None
+    content_url: str
+
+
+class CatalogAssetListResponse(BaseModel):
+    items: list[CatalogAssetItem] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total_count: int
+    query: str | None = None
+
+
+class CatalogAssetUploadResponse(BaseModel):
+    key: str
+    size: int
+    mime_type: str
+
+
+class CatalogAssetDeleteResponse(BaseModel):
+    key: str
+    deleted: bool
+
+
 LegacyOutputNode.model_rebuild()
