@@ -8,7 +8,7 @@ if ($env:OS -ne "Windows_NT") {
 }
 
 $RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BackendDir = $RootDir
+$BackendDir = Join-Path $RootDir "backend"
 $FrontendDir = Join-Path $RootDir "frontend"
 $VenvDir = Join-Path $BackendDir ".venv"
 
