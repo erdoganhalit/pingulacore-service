@@ -12,7 +12,7 @@ Ana yetenekler:
 
 ## Mimari Özeti
 
-- Backend: FastAPI (`app/`)
+- Backend: FastAPI (`backend/app/`)
 - Frontend: React + Vite (`frontend/`)
 - Veritabanı: PostgreSQL (önerilen), SQLite fallback (default)
 - Object Storage: MinIO (S3 uyumlu)
@@ -68,10 +68,12 @@ cp .env.example .env
 Not:
 - API key yoksa sistem varsayılan olarak `stub` moduna düşer.
 - `AI_USE_STUB=1` ile manuel stub zorlanabilir.
+- Backend `.env` yükleme sırası: önce `backend/.env`, yoksa root `.env`.
 
 ### 3) Backend’i çalıştır
 
 ```bash
+cd backend
 uv run uvicorn main:app --reload
 ```
 
@@ -86,6 +88,20 @@ npm run dev
 ```
 
 Frontend: `http://127.0.0.1:5173`
+
+### 5) Tek komutla fullstack (opsiyonel)
+
+Root dizinde:
+
+```bash
+./run_fullstack_dev.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\run_fullstack_dev.ps1
+```
 
 ## Frontend Sayfaları (Güncel Navigasyon)
 
@@ -167,6 +183,7 @@ Bu modelde pipeline girişleri dosya yerine DB kayıtlarından gelir (`yaml_inst
 Backend test:
 
 ```bash
+cd backend
 uv run pytest -q
 ```
 
@@ -180,11 +197,8 @@ npm run build
 
 ## Dizin Yapısı
 
-- `app/`: FastAPI backend
+- `backend/`: Backend workspace (FastAPI app, legacy kod, testler, catalog, docs)
 - `frontend/`: React UI
-- `legacy_app/`: legacy pipeline modülleri
-- `catalog/`: katalog kaynak görselleri
-- `docs/`: proje dokümantasyonu
 
 ## Güvenlik Notu
 

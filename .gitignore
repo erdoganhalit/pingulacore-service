@@ -1,33 +1,31 @@
 # Python-generated files
-__pycache__/
+backend/__pycache__/
 *.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+backend/build/
+backend/dist/
+backend/wheels/
+backend/*.egg-info
 .DS_Store
 
 # Virtual environments
-.venv
+backend/.venv
 
 # env file
 .env
 .env.local
 
 # Runtime artifacts
-service.db
-generated_assets/
-html-editor-mvp/
-sp_files/
-tests/
-scripts
-test_runs/
-.pytest_cache/
-runs/
-ortak/
+backend/service.db
+backend/generated_assets/
+backend/html-editor-mvp/
+backend/sp_files/
+backend/test_runs/
+backend/.pytest_cache/
+backend/runs/
+backend/ortak/
 
 # Legacy reference workspace
-old
+backend/old
 
 # Frontend
 pingula-ui-mock/
@@ -36,36 +34,34 @@ pingula-ui-mock/
 .claude/
 
 # Vendored legacy pipelines — küçük örnek setler repoda; ağır binary'ler mount edilir.
-# Repoda örnek olarak küçük subset'ler tutuluyor (legacy_app/ altında):
-#   - legacy_app/geometri/ortak/, legacy_app/kadir_hoca/{configs,templates,konular}/
+# Repoda örnek olarak küçük subset'ler tutuluyor (backend/legacy_app/ altında):
+#   - backend/legacy_app/geometri/ortak/, backend/legacy_app/kadir_hoca/{configs,templates,konular}/
 # Bunları .gitignore ETME.
 # Mount via env: meb_books/ (~633MB PDF), data/ (~47MB PDF) ve büyük PDF/PNG asset'ler.
-meb_books/
-data/
+backend/meb_books/
+backend/data/
 # Templates klasöründeki büyük binary'ler (PDF/PNG/JPG); YAML'lar repoda kalır.
-legacy_app/kadir_hoca/templates/**/*.pdf
-legacy_app/kadir_hoca/templates/**/*.png
-legacy_app/kadir_hoca/templates/**/*.jpg
-legacy_app/kadir_hoca/templates/**/*.jpeg
+backend/legacy_app/kadir_hoca/templates/**/*.pdf
+backend/legacy_app/kadir_hoca/templates/**/*.png
+backend/legacy_app/kadir_hoca/templates/**/*.jpg
+backend/legacy_app/kadir_hoca/templates/**/*.jpeg
 # Konular klasöründeki büyük asset'ler
-legacy_app/kadir_hoca/konular/**/*.pdf
-legacy_app/kadir_hoca/konular/**/*.png
-legacy_app/kadir_hoca/konular/**/*.jpg
+backend/legacy_app/kadir_hoca/konular/**/*.pdf
+backend/legacy_app/kadir_hoca/konular/**/*.png
+backend/legacy_app/kadir_hoca/konular/**/*.jpg
 
 # Legacy pipeline runtime state files (machine-local)
-.legacy_state/
-.legacy_uploads/
-.number_pool_history.json
-.number_history.json
-.object_history.json
-.object_claim_history.json
-.variant_rotation.json
-.gemini_cache_manifest.json
-.diversity_history.json
-.diversity_reservations.json
+backend/.legacy_state/
+backend/.legacy_uploads/
+backend/.number_pool_history.json
+backend/.number_history.json
+backend/.object_history.json
+backend/.object_claim_history.json
+backend/.variant_rotation.json
+backend/.gemini_cache_manifest.json
+backend/.diversity_history.json
+backend/.diversity_reservations.json
 
 # Legacy pipeline output logs
-logs/
-
-
+backend/logs/
 

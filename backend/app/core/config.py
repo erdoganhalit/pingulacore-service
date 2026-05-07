@@ -27,29 +27,33 @@ def _load_dotenv_file(root_dir: Path) -> None:
     - Does not override existing process env vars.
     - Supports plain KEY=VALUE and `export KEY=VALUE`.
     """
-    dotenv_path = root_dir / ".env"
-    if not dotenv_path.exists() or not dotenv_path.is_file():
-        return
-
-    for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[len("export ") :].strip()
-        if "=" not in line:
+    # Monorepo layout:
+    # 1) Prefer backend/.env
+    # 2) Fallback to repo-root .env
+    candidates = [root_dir / ".env", root_dir.parent / ".env"]
+    for dotenv_path in candidates:
+        if not dotenv_path.exists() or not dotenv_path.is_file():
             continue
 
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if not key:
-            continue
+        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[len("export ") :].strip()
+            if "=" not in line:
+                continue
 
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if not key:
+                continue
 
-        os.environ.setdefault(key, value)
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+
+            os.environ.setdefault(key, value)
 
 
 @dataclass(frozen=True)

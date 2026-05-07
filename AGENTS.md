@@ -44,7 +44,7 @@ Bu dosya, yeni bir thread'e veya yeni bir agente geçerken hızlı context aktar
   - instance upsert ediyor
   - property value kayitlarini yaziyor
 - Script dosyasi:
-  - `app/scripts/import_ortak_yaml.py`
+  - `backend/app/scripts/import_ortak_yaml.py`
 - Import sonucu:
   - 11 template
   - 23 instance
@@ -147,10 +147,10 @@ UI tarafindan kullanilmak uzere CRUD endpointleri eklendi.
 5. Curriculum / property / template / instance edit akislarinda daha gelismis filtreleme veya bulk islemler
 
 ## Onemli Dosyalar
-- `app/db/models.py`
-- `app/db/repository.py`
-- `app/api/content.py`
-- `app/scripts/import_ortak_yaml.py`
+- `backend/app/db/models.py`
+- `backend/app/db/repository.py`
+- `backend/app/api/content.py`
+- `backend/app/scripts/import_ortak_yaml.py`
 - `frontend/src/pages/ContentManagementPage.tsx`
 - `frontend/src/lib/api.ts`
 - `frontend/src/types.ts`
