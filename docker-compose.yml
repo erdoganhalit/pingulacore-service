@@ -37,6 +37,7 @@ services:
   minio-init:
     image: minio/mc:latest
     container_name: pingula-minio-init
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy
@@ -47,6 +48,48 @@ services:
       (mc mb -p local/generated-assets || true) &&
       (mc mb -p local/rendered-outputs || true)
       "
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pingulacore-backend:latest
+    container_name: pingulacore-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql+psycopg://pingula:pingula@postgres:5432/pingula
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: pingula
+      S3_SECRET_KEY: pingula-secret
+      S3_BUCKET_CATALOG: catalog-assets
+      S3_BUCKET_GENERATED: generated-assets
+      S3_BUCKET_RENDERED: rendered-outputs
+      AI_USE_STUB: ${AI_USE_STUB:-1}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: pingulacore-frontend:latest
+    container_name: pingulacore-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      BACKEND_URL: http://backend:8000
+      PORT: 80
+    ports:
+      - "8080:80"
+    restart: unless-stopped
 
 volumes:
   pingula_postgres_data:
