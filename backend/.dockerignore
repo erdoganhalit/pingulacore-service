@@ -1,0 +1,12 @@
+.venv
+__pycache__
+.pytest_cache
+runs
+generated_assets
+sp_files
+test_runs
+.legacy_state
+.legacy_uploads
+tmp
+service.db
+*.log
