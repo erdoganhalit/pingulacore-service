@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react'
 
 import { useAuth } from '../contexts/AuthContext'
@@ -147,15 +147,7 @@ export function LoginPage() {
             {submitting ? 'Giriş yapılıyor…' : 'Giriş yap'}
           </button>
 
-          <p className="text-sm text-center text-muted-foreground">
-            Hesabın yok mu?{' '}
-            <Link
-              to="/register"
-              className="font-medium text-[color:var(--primary)] hover:underline"
-            >
-              Kayıt ol
-            </Link>
-          </p>
+          <p className="text-sm text-center text-muted-foreground">Kayıt olma geçici olarak devre dışı.</p>
         </form>
       </div>
     </div>

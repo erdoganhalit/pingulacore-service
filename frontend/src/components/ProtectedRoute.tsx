@@ -28,7 +28,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (status === 'anonymous') {
-    return <Navigate to="/register" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return <>{children}</>
