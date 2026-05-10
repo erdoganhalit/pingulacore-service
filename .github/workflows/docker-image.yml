@@ -205,11 +205,19 @@ jobs:
             create_secret_if_missing "$GOOGLE_API_KEY_SECRET_NAME" "$GOOGLE_API_KEY"
             create_secret_if_missing "$ANTHROPIC_API_KEY_SECRET_NAME" "$ANTHROPIC_API_KEY"
 
+            # Run schema migrations explicitly before service rollout.
+            docker run --rm \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e SKIP_DB_MIGRATIONS=1 \
+              "$BACKEND_IMAGE" \
+              sh -lc 'if command -v alembic >/dev/null 2>&1; then alembic upgrade head; elif python -c "import alembic" >/dev/null 2>&1; then python -m alembic upgrade head; else uv run alembic upgrade head; fi'
+
             export BACKEND_IMAGE FRONTEND_IMAGE BACKEND_PORT FRONTEND_PORT
             export S3_BUCKET_CATALOG S3_BUCKET_GENERATED S3_BUCKET_RENDERED
             export DATABASE_URL_SECRET_NAME S3_ENDPOINT_URL_SECRET_NAME
             export S3_ACCESS_KEY_SECRET_NAME S3_SECRET_KEY_SECRET_NAME
             export GOOGLE_API_KEY_SECRET_NAME ANTHROPIC_API_KEY_SECRET_NAME
             export AI_USE_STUB=0
+            export SKIP_DB_MIGRATIONS=1
 
             docker stack deploy --with-registry-auth --prune -c app-stack.yml pingula
