@@ -65,5 +65,5 @@ backend/.diversity_reservations.json
 # Legacy pipeline output logs
 backend/logs/
 
-# local scripts
-scripts/
+# local scripts (repo root only)
+/scripts/
