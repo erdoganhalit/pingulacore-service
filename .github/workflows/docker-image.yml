@@ -127,3 +127,76 @@ jobs:
 
           echo "Backend smoke check failed: /docs not ready in time." >&2
           exit 1
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    environment: production
+
+    steps:
+      - name: Prepare tags
+        id: prep
+        run: |
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          SHA_TAG="${GITHUB_SHA::12}"
+          echo "owner_lc=$OWNER_LC" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_PULL_USERNAME: ${{ vars.GHCR_PULL_USERNAME || secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+
+          BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
+          FRONTEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-frontend:${{ steps.prep.outputs.sha_tag }}
+
+          BACKEND_PORT: ${{ vars.BACKEND_PORT }}
+          FRONTEND_PORT: ${{ vars.FRONTEND_PORT }}
+          S3_BUCKET_CATALOG: ${{ vars.S3_BUCKET_CATALOG }}
+          S3_BUCKET_GENERATED: ${{ vars.S3_BUCKET_GENERATED }}
+          S3_BUCKET_RENDERED: ${{ vars.S3_BUCKET_RENDERED }}
+          S3_ENDPOINT_URL: ${{ vars.S3_ENDPOINT_URL }}
+
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT }}
+          envs: GHCR_PULL_USERNAME,GHCR_PULL_TOKEN,BACKEND_IMAGE,FRONTEND_IMAGE,BACKEND_PORT,FRONTEND_PORT,S3_BUCKET_CATALOG,S3_BUCKET_GENERATED,S3_BUCKET_RENDERED,S3_ENDPOINT_URL,DATABASE_URL,S3_ACCESS_KEY,S3_SECRET_KEY,GOOGLE_API_KEY,ANTHROPIC_API_KEY
+          script: |
+            set -euo pipefail
+            cd /opt/pingulacore-deploy
+
+            mkdir -p secrets
+            chmod 700 secrets
+
+            printf '%s' "$DATABASE_URL" > secrets/database_url
+            printf '%s' "$S3_ENDPOINT_URL" > secrets/s3_endpoint_url
+            printf '%s' "$S3_ACCESS_KEY" > secrets/s3_access_key
+            printf '%s' "$S3_SECRET_KEY" > secrets/s3_secret_key
+            printf '%s' "$GOOGLE_API_KEY" > secrets/google_api_key
+            printf '%s' "$ANTHROPIC_API_KEY" > secrets/anthropic_api_key
+            chmod 600 secrets/*
+
+            cat > app.env <<EOF
+            BACKEND_IMAGE=$BACKEND_IMAGE
+            FRONTEND_IMAGE=$FRONTEND_IMAGE
+            BACKEND_PORT=$BACKEND_PORT
+            FRONTEND_PORT=$FRONTEND_PORT
+            S3_BUCKET_CATALOG=$S3_BUCKET_CATALOG
+            S3_BUCKET_GENERATED=$S3_BUCKET_GENERATED
+            S3_BUCKET_RENDERED=$S3_BUCKET_RENDERED
+            AI_USE_STUB=0
+            EOF
+            chmod 600 app.env
+
+            echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u "$GHCR_PULL_USERNAME" --password-stdin
+            docker compose --env-file app.env -f app-compose.yml pull
+            docker compose --env-file app.env -f app-compose.yml up -d
