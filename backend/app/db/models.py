@@ -446,6 +446,26 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+class UserPermission(Base):
+    __tablename__ = "user_permissions"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_permissions_user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    can_edit_curriculum_constant_nodes: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_edit_curriculum_folder_nodes: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_create_yaml_template: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_create_yaml_instance: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_create_legacy_yaml_instance: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_run_pipeline: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class AuthToken(Base):
     __tablename__ = "auth_tokens"
 
