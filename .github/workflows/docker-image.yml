@@ -148,6 +148,7 @@ jobs:
         env:
           GHCR_PULL_USERNAME: ${{ vars.GHCR_PULL_USERNAME || secrets.GHCR_PULL_USERNAME }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          DEPLOY_REV: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
           BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
           FRONTEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-frontend:${{ steps.prep.outputs.sha_tag }}
@@ -169,34 +170,46 @@ jobs:
           username: ${{ vars.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ vars.SSH_PORT }}
-          envs: GHCR_PULL_USERNAME,GHCR_PULL_TOKEN,BACKEND_IMAGE,FRONTEND_IMAGE,BACKEND_PORT,FRONTEND_PORT,S3_BUCKET_CATALOG,S3_BUCKET_GENERATED,S3_BUCKET_RENDERED,S3_ENDPOINT_URL,DATABASE_URL,S3_ACCESS_KEY,S3_SECRET_KEY,GOOGLE_API_KEY,ANTHROPIC_API_KEY
+          envs: GHCR_PULL_USERNAME,GHCR_PULL_TOKEN,DEPLOY_REV,BACKEND_IMAGE,FRONTEND_IMAGE,BACKEND_PORT,FRONTEND_PORT,S3_BUCKET_CATALOG,S3_BUCKET_GENERATED,S3_BUCKET_RENDERED,S3_ENDPOINT_URL,DATABASE_URL,S3_ACCESS_KEY,S3_SECRET_KEY,GOOGLE_API_KEY,ANTHROPIC_API_KEY
           script: |
             set -euo pipefail
             cd /opt/pingulacore-deploy
 
-            mkdir -p secrets
-            chmod 700 secrets
-
-            printf '%s' "$DATABASE_URL" > secrets/database_url
-            printf '%s' "$S3_ENDPOINT_URL" > secrets/s3_endpoint_url
-            printf '%s' "$S3_ACCESS_KEY" > secrets/s3_access_key
-            printf '%s' "$S3_SECRET_KEY" > secrets/s3_secret_key
-            printf '%s' "$GOOGLE_API_KEY" > secrets/google_api_key
-            printf '%s' "$ANTHROPIC_API_KEY" > secrets/anthropic_api_key
-            chmod 600 secrets/*
-
-            cat > app.env <<EOF
-            BACKEND_IMAGE=$BACKEND_IMAGE
-            FRONTEND_IMAGE=$FRONTEND_IMAGE
-            BACKEND_PORT=$BACKEND_PORT
-            FRONTEND_PORT=$FRONTEND_PORT
-            S3_BUCKET_CATALOG=$S3_BUCKET_CATALOG
-            S3_BUCKET_GENERATED=$S3_BUCKET_GENERATED
-            S3_BUCKET_RENDERED=$S3_BUCKET_RENDERED
-            AI_USE_STUB=0
-            EOF
-            chmod 600 app.env
-
             echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u "$GHCR_PULL_USERNAME" --password-stdin
-            docker compose --env-file app.env -f app-compose.yml pull
-            docker compose --env-file app.env -f app-compose.yml up -d
+
+            safe_rev="$(echo "$DEPLOY_REV" | tr -cd 'a-zA-Z0-9_.-')"
+            if [ -z "$safe_rev" ]; then
+              echo "DEPLOY_REV is empty after sanitization" >&2
+              exit 1
+            fi
+
+            create_secret_if_missing() {
+              name="$1"
+              value="$2"
+              if ! docker secret inspect "$name" >/dev/null 2>&1; then
+                printf '%s' "$value" | docker secret create "$name" -
+              fi
+            }
+
+            DATABASE_URL_SECRET_NAME="pingula_database_url_${safe_rev}"
+            S3_ENDPOINT_URL_SECRET_NAME="pingula_s3_endpoint_url_${safe_rev}"
+            S3_ACCESS_KEY_SECRET_NAME="pingula_s3_access_key_${safe_rev}"
+            S3_SECRET_KEY_SECRET_NAME="pingula_s3_secret_key_${safe_rev}"
+            GOOGLE_API_KEY_SECRET_NAME="pingula_google_api_key_${safe_rev}"
+            ANTHROPIC_API_KEY_SECRET_NAME="pingula_anthropic_api_key_${safe_rev}"
+
+            create_secret_if_missing "$DATABASE_URL_SECRET_NAME" "$DATABASE_URL"
+            create_secret_if_missing "$S3_ENDPOINT_URL_SECRET_NAME" "$S3_ENDPOINT_URL"
+            create_secret_if_missing "$S3_ACCESS_KEY_SECRET_NAME" "$S3_ACCESS_KEY"
+            create_secret_if_missing "$S3_SECRET_KEY_SECRET_NAME" "$S3_SECRET_KEY"
+            create_secret_if_missing "$GOOGLE_API_KEY_SECRET_NAME" "$GOOGLE_API_KEY"
+            create_secret_if_missing "$ANTHROPIC_API_KEY_SECRET_NAME" "$ANTHROPIC_API_KEY"
+
+            export BACKEND_IMAGE FRONTEND_IMAGE BACKEND_PORT FRONTEND_PORT
+            export S3_BUCKET_CATALOG S3_BUCKET_GENERATED S3_BUCKET_RENDERED
+            export DATABASE_URL_SECRET_NAME S3_ENDPOINT_URL_SECRET_NAME
+            export S3_ACCESS_KEY_SECRET_NAME S3_SECRET_KEY_SECRET_NAME
+            export GOOGLE_API_KEY_SECRET_NAME ANTHROPIC_API_KEY_SECRET_NAME
+            export AI_USE_STUB=0
+
+            docker stack deploy --with-registry-auth --prune -c app-stack.yml pingula
