@@ -1,7 +1,9 @@
-name: Build and Push Backend/Frontend to GHCR
+name: Backend/Frontend CI + GHCR Publish
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
@@ -10,8 +12,45 @@ permissions:
   packages: write
 
 jobs:
-  docker:
+  backend-guardrails:
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          AI_USE_STUB: "1"
+          DATABASE_URL: sqlite:///./test_runs/ci_test.db
+        run: uv run pytest -q tests/test_agents.py tests/test_usage.py tests/test_legacy_session_output_store.py tests/test_auth_smoke.py
+
+      - name: Migration discipline check (model change without revision => fail)
+        working-directory: backend
+        env:
+          AI_USE_STUB: "1"
+          DATABASE_URL: sqlite:///./test_runs/ci_migration_check.db
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+
+  docker:
+    needs: backend-guardrails
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
 
     steps:
       - name: Checkout
@@ -60,3 +99,31 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Backend image smoke test (entrypoint migration + app health)
+        env:
+          BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
+        run: |
+          docker pull "$BACKEND_IMAGE"
+          docker run -d --rm \
+            --name pingulacore-backend-smoke \
+            -e AI_USE_STUB=1 \
+            -e DATABASE_URL=sqlite:////tmp/pingula_smoke.db \
+            -p 18000:8000 \
+            "$BACKEND_IMAGE"
+
+          cleanup() {
+            docker logs pingulacore-backend-smoke --tail 200 || true
+            docker stop pingulacore-backend-smoke || true
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:18000/docs" > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Backend smoke check failed: /docs not ready in time." >&2
+          exit 1

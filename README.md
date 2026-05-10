@@ -79,6 +79,43 @@ uv run uvicorn main:app --reload
 
 Backend: `http://127.0.0.1:8000`
 
+### 3.1) Database Migration (Alembic)
+
+Şema yönetiminin tek kaynağı Alembic migration dosyalarıdır.
+
+Temel komutlar:
+
+```bash
+cd backend
+uv run alembic upgrade head
+```
+
+Yeni migration üretmek için:
+
+```bash
+cd backend
+uv run alembic revision --autogenerate -m "add_xxx"
+```
+
+Kontrol komutu (`model değişti ama migration yok` durumunu yakalar):
+
+```bash
+cd backend
+uv run alembic check
+```
+
+Mevcut (veri dolu) DB’yi Alembic’e baseline etmek için:
+
+```bash
+cd backend
+uv run alembic stamp head
+```
+
+Not:
+- `stamp head` sadece Alembic versiyon bilgisini işaretler, tablo/kolon yaratmaz.
+- İlk baseline sonrası tüm şema değişiklikleri yeni revision dosyalarıyla ilerletilmelidir.
+- Ayrıntılı operasyon runbook: `backend/docs/alembic_runbook.md`
+
 ### 4) Frontend’i çalıştır
 
 ```bash
@@ -194,6 +231,17 @@ cd frontend
 npm run test
 npm run build
 ```
+
+## Developer Workflow Standardı (DB Değişikliği)
+
+1. SQLAlchemy modelini güncelle.
+2. `cd backend && uv run alembic revision --autogenerate -m "..."`
+3. Üretilen revision dosyasını review et ve commit’e dahil et.
+4. PR aç / merge et.
+
+Kural:
+- Migration dosyası olmadan model değişikliği merge edilmemelidir.
+- CI tarafında `alembic check` bu kuralı otomatik doğrular.
 
 ## Dizin Yapısı
 

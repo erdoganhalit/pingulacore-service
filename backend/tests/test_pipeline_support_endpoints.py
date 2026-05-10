@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.core.config import get_settings
-from app.db.database import Base, engine, init_db
+from conftest import reset_schema_via_alembic
 
 
 def test_list_yaml_files_from_primary_and_fallback(client) -> None:
@@ -203,8 +203,7 @@ def test_sp_file_favorites_survive_db_reinit_via_sp_files_metadata(client) -> No
         assert mark_l.status_code == 200
 
         # Simulate backend restart with a recreated DB schema.
-        Base.metadata.drop_all(bind=engine)
-        init_db()
+        reset_schema_via_alembic()
 
         q_list = client.get("/v1/sp-files/q_json")
         assert q_list.status_code == 200
