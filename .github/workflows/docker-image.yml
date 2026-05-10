@@ -132,7 +132,7 @@ jobs:
     needs: docker
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    environment: production
+    environment: dev
 
     steps:
       - name: Prepare tags
