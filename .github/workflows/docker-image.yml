@@ -148,7 +148,7 @@ jobs:
         env:
           GHCR_PULL_USERNAME: ${{ vars.GHCR_PULL_USERNAME || secrets.GHCR_PULL_USERNAME }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-          DEPLOY_REV: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DEPLOY_REV: ${{ steps.prep.outputs.sha_tag }}-${{ github.run_id }}-${{ github.run_attempt }}
 
           BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
           FRONTEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-frontend:${{ steps.prep.outputs.sha_tag }}
