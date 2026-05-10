@@ -210,7 +210,7 @@ jobs:
               -e DATABASE_URL="$DATABASE_URL" \
               -e SKIP_DB_MIGRATIONS=1 \
               "$BACKEND_IMAGE" \
-              sh -lc 'if command -v alembic >/dev/null 2>&1; then alembic upgrade head; elif python -c "import alembic" >/dev/null 2>&1; then python -c "from alembic import command; from alembic.config import Config; command.upgrade(Config(\"alembic.ini\"), \"head\")"; else uv run alembic upgrade head; fi'
+              sh -lc 'if [ -x /app/.venv/bin/alembic ]; then /app/.venv/bin/alembic upgrade head; elif command -v alembic >/dev/null 2>&1; then alembic upgrade head; else uv run alembic upgrade head; fi'
 
             export BACKEND_IMAGE FRONTEND_IMAGE BACKEND_PORT FRONTEND_PORT
             export S3_BUCKET_CATALOG S3_BUCKET_GENERATED S3_BUCKET_RENDERED
