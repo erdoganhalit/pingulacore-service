@@ -1,7 +1,9 @@
-name: Build and Push Backend/Frontend to GHCR
+name: Backend/Frontend CI + GHCR Publish
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
@@ -10,8 +12,45 @@ permissions:
   packages: write
 
 jobs:
-  docker:
+  backend-guardrails:
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          AI_USE_STUB: "1"
+          DATABASE_URL: sqlite:///./test_runs/ci_test.db
+        run: uv run pytest -q tests/test_agents.py tests/test_usage.py tests/test_legacy_session_output_store.py tests/test_auth_smoke.py
+
+      - name: Migration discipline check (model change without revision => fail)
+        working-directory: backend
+        env:
+          AI_USE_STUB: "1"
+          DATABASE_URL: sqlite:///./test_runs/ci_migration_check.db
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+
+  docker:
+    needs: backend-guardrails
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
 
     steps:
       - name: Checkout
@@ -60,3 +99,117 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Backend image smoke test (entrypoint migration + app health)
+        env:
+          BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
+        run: |
+          docker pull "$BACKEND_IMAGE"
+          docker run -d --rm \
+            --name pingulacore-backend-smoke \
+            -e AI_USE_STUB=1 \
+            -e DATABASE_URL=sqlite:////tmp/pingula_smoke.db \
+            -p 18000:8000 \
+            "$BACKEND_IMAGE"
+
+          cleanup() {
+            docker logs pingulacore-backend-smoke --tail 200 || true
+            docker stop pingulacore-backend-smoke || true
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:18000/docs" > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Backend smoke check failed: /docs not ready in time." >&2
+          exit 1
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    environment: production
+
+    steps:
+      - name: Prepare tags
+        id: prep
+        run: |
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          SHA_TAG="${GITHUB_SHA::12}"
+          echo "owner_lc=$OWNER_LC" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_PULL_USERNAME: ${{ vars.GHCR_PULL_USERNAME || secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          DEPLOY_REV: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+          BACKEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-backend:${{ steps.prep.outputs.sha_tag }}
+          FRONTEND_IMAGE: ghcr.io/${{ steps.prep.outputs.owner_lc }}/pingulacore-frontend:${{ steps.prep.outputs.sha_tag }}
+
+          BACKEND_PORT: ${{ vars.BACKEND_PORT }}
+          FRONTEND_PORT: ${{ vars.FRONTEND_PORT }}
+          S3_BUCKET_CATALOG: ${{ vars.S3_BUCKET_CATALOG }}
+          S3_BUCKET_GENERATED: ${{ vars.S3_BUCKET_GENERATED }}
+          S3_BUCKET_RENDERED: ${{ vars.S3_BUCKET_RENDERED }}
+          S3_ENDPOINT_URL: ${{ vars.S3_ENDPOINT_URL }}
+
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT }}
+          envs: GHCR_PULL_USERNAME,GHCR_PULL_TOKEN,DEPLOY_REV,BACKEND_IMAGE,FRONTEND_IMAGE,BACKEND_PORT,FRONTEND_PORT,S3_BUCKET_CATALOG,S3_BUCKET_GENERATED,S3_BUCKET_RENDERED,S3_ENDPOINT_URL,DATABASE_URL,S3_ACCESS_KEY,S3_SECRET_KEY,GOOGLE_API_KEY,ANTHROPIC_API_KEY
+          script: |
+            set -euo pipefail
+            cd /opt/pingulacore-deploy
+
+            echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u "$GHCR_PULL_USERNAME" --password-stdin
+
+            safe_rev="$(echo "$DEPLOY_REV" | tr -cd 'a-zA-Z0-9_.-')"
+            if [ -z "$safe_rev" ]; then
+              echo "DEPLOY_REV is empty after sanitization" >&2
+              exit 1
+            fi
+
+            create_secret_if_missing() {
+              name="$1"
+              value="$2"
+              if ! docker secret inspect "$name" >/dev/null 2>&1; then
+                printf '%s' "$value" | docker secret create "$name" -
+              fi
+            }
+
+            DATABASE_URL_SECRET_NAME="pingula_database_url_${safe_rev}"
+            S3_ENDPOINT_URL_SECRET_NAME="pingula_s3_endpoint_url_${safe_rev}"
+            S3_ACCESS_KEY_SECRET_NAME="pingula_s3_access_key_${safe_rev}"
+            S3_SECRET_KEY_SECRET_NAME="pingula_s3_secret_key_${safe_rev}"
+            GOOGLE_API_KEY_SECRET_NAME="pingula_google_api_key_${safe_rev}"
+            ANTHROPIC_API_KEY_SECRET_NAME="pingula_anthropic_api_key_${safe_rev}"
+
+            create_secret_if_missing "$DATABASE_URL_SECRET_NAME" "$DATABASE_URL"
+            create_secret_if_missing "$S3_ENDPOINT_URL_SECRET_NAME" "$S3_ENDPOINT_URL"
+            create_secret_if_missing "$S3_ACCESS_KEY_SECRET_NAME" "$S3_ACCESS_KEY"
+            create_secret_if_missing "$S3_SECRET_KEY_SECRET_NAME" "$S3_SECRET_KEY"
+            create_secret_if_missing "$GOOGLE_API_KEY_SECRET_NAME" "$GOOGLE_API_KEY"
+            create_secret_if_missing "$ANTHROPIC_API_KEY_SECRET_NAME" "$ANTHROPIC_API_KEY"
+
+            export BACKEND_IMAGE FRONTEND_IMAGE BACKEND_PORT FRONTEND_PORT
+            export S3_BUCKET_CATALOG S3_BUCKET_GENERATED S3_BUCKET_RENDERED
+            export DATABASE_URL_SECRET_NAME S3_ENDPOINT_URL_SECRET_NAME
+            export S3_ACCESS_KEY_SECRET_NAME S3_SECRET_KEY_SECRET_NAME
+            export GOOGLE_API_KEY_SECRET_NAME ANTHROPIC_API_KEY_SECRET_NAME
+            export AI_USE_STUB=0
+
+            docker stack deploy --with-registry-auth --prune -c app-stack.yml pingula

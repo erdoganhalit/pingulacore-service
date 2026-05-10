@@ -11,7 +11,6 @@ from app.api.catalog_assets import router as catalog_assets_router
 from app.api.explorer import router as explorer_router
 from app.api.agent import router as agent_router
 from app.api.legacy import router as legacy_router
-from app.api.agent import router as agent_router
 from app.api.content import router as content_router
 from app.api.logs import router as logs_router
 from app.api.pipeline import router as pipeline_router, assets_router

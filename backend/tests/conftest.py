@@ -5,7 +5,10 @@ import sys
 from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -26,6 +29,17 @@ from app.db.database import Base, engine, init_db
 from app.main import app
 
 
+def _alembic_config() -> Config:
+    return Config(str(ROOT / "alembic.ini"))
+
+
+def reset_schema_via_alembic() -> None:
+    Base.metadata.drop_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+    command.upgrade(_alembic_config(), "head")
+
+
 @pytest.fixture(autouse=True)
 def _force_stub_agents() -> None:
     os.environ.setdefault("AI_USE_STUB", "1")
@@ -33,8 +47,8 @@ def _force_stub_agents() -> None:
 
 @pytest.fixture(autouse=True)
 def reset_db() -> None:
-    Base.metadata.drop_all(bind=engine)
     init_db()
+    reset_schema_via_alembic()
     yield
 
 

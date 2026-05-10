@@ -21,6 +21,27 @@ def _as_int(value: str | None, default: int) -> int:
         return default
 
 
+def _read_env_from_file(env_name: str) -> str | None:
+    file_var_name = f"{env_name}_FILE"
+    file_path = os.getenv(file_var_name)
+    if not file_path:
+        return None
+
+    path = Path(file_path)
+    if not path.exists():
+        raise RuntimeError(f"{file_var_name} points to a missing file: {file_path}")
+    if not path.is_file():
+        raise RuntimeError(f"{file_var_name} must point to a file: {file_path}")
+    return path.read_text(encoding="utf-8").rstrip("\r\n")
+
+
+def _get_env(env_name: str, default: str | None = None) -> str | None:
+    file_value = _read_env_from_file(env_name)
+    if file_value is not None:
+        return file_value
+    return os.getenv(env_name, default)
+
+
 def _load_dotenv_file(root_dir: Path) -> None:
     """
     Lightweight .env loader.
@@ -110,17 +131,21 @@ def build_settings() -> Settings:
     catalog_dir = root_dir / "catalog"
     runs_dir = root_dir / "runs"
 
-    database_url = os.getenv("DATABASE_URL", f"sqlite:///{root_dir / 'service.db'}")
+    database_url = _get_env("DATABASE_URL", f"sqlite:///{root_dir / 'service.db'}")
 
-    gemini_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    google_key = _get_env("GOOGLE_API_KEY")
+    gemini_alias_key = _get_env("GEMINI_API_KEY")
+    gemini_key = google_key or gemini_alias_key
+    anthropic_key = _get_env("ANTHROPIC_API_KEY")
 
     # PydanticAI's Google provider expects GOOGLE_API_KEY.
     # If user configured only GEMINI_API_KEY, mirror it. Drop the duplicate so the
     # google-genai SDK doesn't emit a warning on every client init.
-    if gemini_key and not os.getenv("GOOGLE_API_KEY"):
+    if gemini_key and not google_key:
         os.environ["GOOGLE_API_KEY"] = gemini_key
-    if os.getenv("GOOGLE_API_KEY") and os.getenv("GEMINI_API_KEY"):
+    if anthropic_key is not None:
+        os.environ["ANTHROPIC_API_KEY"] = anthropic_key
+    if google_key and gemini_alias_key:
         os.environ.pop("GEMINI_API_KEY", None)
 
     use_stub_default = not (gemini_key or anthropic_key)
@@ -137,9 +162,9 @@ def build_settings() -> Settings:
         output_dir=Path(os.getenv("ASSET_OUTPUT_DIR", str(output_dir))),
         catalog_dir=Path(os.getenv("CATALOG_DIR", str(catalog_dir))),
         runs_dir=Path(os.getenv("RUNS_DIR", str(runs_dir))),
-        s3_endpoint_url=os.getenv("S3_ENDPOINT_URL", "http://localhost:9000"),
-        s3_access_key=os.getenv("S3_ACCESS_KEY", "pingula"),
-        s3_secret_key=os.getenv("S3_SECRET_KEY", "pingula-secret"),
+        s3_endpoint_url=_get_env("S3_ENDPOINT_URL", "http://localhost:9000") or "http://localhost:9000",
+        s3_access_key=_get_env("S3_ACCESS_KEY", "pingula") or "pingula",
+        s3_secret_key=_get_env("S3_SECRET_KEY", "pingula-secret") or "pingula-secret",
         s3_region=os.getenv("S3_REGION", "us-east-1"),
         s3_catalog_bucket=os.getenv("S3_BUCKET_CATALOG", "catalog-assets"),
         s3_generated_bucket=os.getenv("S3_BUCKET_GENERATED", "generated-assets"),
@@ -163,8 +188,8 @@ def build_settings() -> Settings:
         auth_token_ttl_hours=_as_int(os.getenv("AUTH_TOKEN_TTL_HOURS"), 168),
         password_min_length=_as_int(os.getenv("PASSWORD_MIN_LENGTH"), 8),
         signup_enabled=_as_bool(os.getenv("SIGNUP_ENABLED"), True),
-        admin_seed_email=(os.getenv("ADMIN_EMAIL") or None),
-        admin_seed_password=(os.getenv("ADMIN_PASSWORD") or None),
+        admin_seed_email=(_get_env("ADMIN_EMAIL") or None),
+        admin_seed_password=(_get_env("ADMIN_PASSWORD") or None),
     )
 
 
