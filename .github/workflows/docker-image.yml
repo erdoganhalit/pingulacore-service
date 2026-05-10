@@ -205,8 +205,9 @@ jobs:
             create_secret_if_missing "$GOOGLE_API_KEY_SECRET_NAME" "$GOOGLE_API_KEY"
             create_secret_if_missing "$ANTHROPIC_API_KEY_SECRET_NAME" "$ANTHROPIC_API_KEY"
 
-            # Run schema migrations explicitly before service rollout.
+            # Run migrations once on the same user-defined network that can resolve the DB hostname.
             docker run --rm \
+              --network pingula-swarm-net \
               -e DATABASE_URL="$DATABASE_URL" \
               -e SKIP_DB_MIGRATIONS=1 \
               "$BACKEND_IMAGE" \
