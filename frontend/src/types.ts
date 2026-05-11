@@ -222,6 +222,8 @@ export interface CatalogAssetItem {
 
 export interface CatalogAssetListResponse {
   items: CatalogAssetItem[]
+  folders?: string[]
+  prefix?: string | null
   next_cursor?: string | null
   total_count: number
   query?: string | null
@@ -251,6 +253,25 @@ export interface CatalogAssetBulkUploadResponse {
 export interface CatalogAssetDeleteResponse {
   key: string
   deleted: boolean
+}
+
+export interface CatalogAssetMoveItemResult {
+  key: string
+  success: boolean
+  new_key?: string | null
+  error?: string | null
+}
+
+export interface CatalogAssetMoveResponse {
+  folder: string
+  results: CatalogAssetMoveItemResult[]
+  success_count: number
+  failure_count: number
+}
+
+export interface CatalogAssetRenameResponse {
+  old_key: string
+  new_key: string
 }
 
 export interface HtmlReRenderResponse {
