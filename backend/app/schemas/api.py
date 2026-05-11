@@ -452,6 +452,21 @@ class CatalogAssetUploadResponse(BaseModel):
     mime_type: str
 
 
+class CatalogAssetBulkUploadItemResult(BaseModel):
+    filename: str
+    success: bool
+    key: str | None = None
+    size: int | None = None
+    mime_type: str | None = None
+    error: str | None = None
+
+
+class CatalogAssetBulkUploadResponse(BaseModel):
+    results: list[CatalogAssetBulkUploadItemResult] = Field(default_factory=list)
+    success_count: int
+    failure_count: int
+
+
 class CatalogAssetDeleteResponse(BaseModel):
     key: str
     deleted: bool

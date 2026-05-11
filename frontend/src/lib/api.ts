@@ -6,6 +6,7 @@ import type {
   LoginRequest,
   RegisterRequest,
   ArtifactItem,
+  CatalogAssetBulkUploadResponse,
   CatalogAssetDeleteResponse,
   CatalogAssetListResponse,
   CatalogAssetUploadResponse,
@@ -474,6 +475,17 @@ export const api = {
     const formData = new FormData()
     formData.append('file', file)
     return apiFetch<CatalogAssetUploadResponse>('/v1/catalog-assets', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  uploadCatalogAssetsBulk: (files: File[]) => {
+    const formData = new FormData()
+    for (const file of files) {
+      formData.append('files', file)
+    }
+    return apiFetch<CatalogAssetBulkUploadResponse>('/v1/catalog-assets/bulk', {
       method: 'POST',
       body: formData,
     })

@@ -13,6 +13,8 @@ from fastapi.responses import Response
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.schemas.api import (
+    CatalogAssetBulkUploadItemResult,
+    CatalogAssetBulkUploadResponse,
     CatalogAssetDeleteResponse,
     CatalogAssetItem,
     CatalogAssetListResponse,
@@ -75,6 +77,31 @@ def _mime_for_key(key: str) -> str | None:
     return mimetypes.guess_type(key)[0]
 
 
+def _resolve_image_mime(filename: str, content_type: str | None) -> str:
+    mime_type = (content_type or "").strip() or (mimetypes.guess_type(filename)[0] or "application/octet-stream")
+    if not mime_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Sadece görsel dosyaları yüklenebilir")
+    return mime_type
+
+
+def _resolve_unique_catalog_key(
+    storage: ObjectStorageService,
+    bucket: str,
+    base_key: str,
+    claimed: set[str],
+) -> str:
+    """Pick a key that doesn't collide with existing bucket objects or other keys claimed in this call."""
+    key = base_key
+    suffix = 1
+    stem = Path(base_key).stem
+    ext = Path(base_key).suffix
+    while key in claimed or storage.object_exists(bucket=bucket, key=key):
+        key = f"{stem}_{suffix}{ext}"
+        suffix += 1
+    claimed.add(key)
+    return key
+
+
 @router.get("", response_model=CatalogAssetListResponse)
 def list_catalog_assets(
     cursor: str | None = Query(default=None, description="Pagination cursor"),
@@ -133,21 +160,12 @@ async def upload_catalog_asset(file: UploadFile = File(...)) -> CatalogAssetUplo
     if not filename:
         raise HTTPException(status_code=400, detail="Dosya adı boş olamaz")
 
-    key = Path(filename).name
+    base_key = Path(filename).name
     settings = get_settings()
     storage = ObjectStorageService(settings)
 
-    mime_type = (file.content_type or "").strip() or (mimetypes.guess_type(key)[0] or "application/octet-stream")
-    if not mime_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Sadece görsel dosyaları yüklenebilir")
-
-    base_key = key
-    suffix = 1
-    while storage.object_exists(bucket=settings.s3_catalog_bucket, key=key):
-        stem = Path(base_key).stem
-        ext = Path(base_key).suffix
-        key = f"{stem}_{suffix}{ext}"
-        suffix += 1
+    mime_type = _resolve_image_mime(base_key, file.content_type)
+    key = _resolve_unique_catalog_key(storage, settings.s3_catalog_bucket, base_key, claimed=set())
 
     content = await file.read()
     if not content:
@@ -160,6 +178,74 @@ async def upload_catalog_asset(file: UploadFile = File(...)) -> CatalogAssetUplo
         content_type=mime_type,
     )
     return CatalogAssetUploadResponse(key=key, size=len(content), mime_type=mime_type)
+
+
+@router.post("/bulk", response_model=CatalogAssetBulkUploadResponse)
+async def upload_catalog_assets_bulk(
+    files: list[UploadFile] = File(...),
+) -> CatalogAssetBulkUploadResponse:
+    if not files:
+        raise HTTPException(status_code=400, detail="En az bir dosya gönderilmeli")
+
+    settings = get_settings()
+    storage = ObjectStorageService(settings)
+    bucket = settings.s3_catalog_bucket
+
+    results: list[CatalogAssetBulkUploadItemResult] = []
+    claimed_keys: set[str] = set()
+
+    for upload in files:
+        filename = (upload.filename or "").strip()
+        try:
+            if not filename:
+                raise HTTPException(status_code=400, detail="Dosya adı boş olamaz")
+
+            base_key = Path(filename).name
+            mime_type = _resolve_image_mime(base_key, upload.content_type)
+            key = _resolve_unique_catalog_key(storage, bucket, base_key, claimed=claimed_keys)
+
+            content = await upload.read()
+            if not content:
+                raise HTTPException(status_code=400, detail="Boş dosya yüklenemez")
+
+            storage.upload_bytes(
+                bucket=bucket,
+                key=key,
+                data=content,
+                content_type=mime_type,
+            )
+            results.append(
+                CatalogAssetBulkUploadItemResult(
+                    filename=filename or "(unnamed)",
+                    success=True,
+                    key=key,
+                    size=len(content),
+                    mime_type=mime_type,
+                )
+            )
+        except HTTPException as exc:
+            results.append(
+                CatalogAssetBulkUploadItemResult(
+                    filename=filename or "(unnamed)",
+                    success=False,
+                    error=str(exc.detail),
+                )
+            )
+        except Exception as exc:
+            results.append(
+                CatalogAssetBulkUploadItemResult(
+                    filename=filename or "(unnamed)",
+                    success=False,
+                    error=f"Beklenmeyen hata: {exc}",
+                )
+            )
+
+    success_count = sum(1 for r in results if r.success)
+    return CatalogAssetBulkUploadResponse(
+        results=results,
+        success_count=success_count,
+        failure_count=len(results) - success_count,
+    )
 
 
 @router.delete("/{key:path}", response_model=CatalogAssetDeleteResponse)

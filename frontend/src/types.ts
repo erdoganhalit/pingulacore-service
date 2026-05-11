@@ -233,6 +233,21 @@ export interface CatalogAssetUploadResponse {
   mime_type: string
 }
 
+export interface CatalogAssetBulkUploadItemResult {
+  filename: string
+  success: boolean
+  key?: string | null
+  size?: number | null
+  mime_type?: string | null
+  error?: string | null
+}
+
+export interface CatalogAssetBulkUploadResponse {
+  results: CatalogAssetBulkUploadItemResult[]
+  success_count: number
+  failure_count: number
+}
+
 export interface CatalogAssetDeleteResponse {
   key: string
   deleted: boolean
