@@ -72,6 +72,7 @@ export function CatalogAssetsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState('')
+  const [uploadSummary, setUploadSummary] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -146,11 +147,22 @@ export function CatalogAssetsPage() {
 
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
+    const fileList = Array.from(files)
     setUploading(true)
     setError('')
+    setUploadSummary('')
     try {
-      for (const file of Array.from(files)) {
-        await api.uploadCatalogAsset(file)
+      const response = await api.uploadCatalogAssetsBulk(fileList)
+      const { success_count, failure_count, results } = response
+      if (failure_count > 0) {
+        const failedNames = results
+          .filter((r) => !r.success)
+          .map((r) => `${r.filename}${r.error ? ` (${r.error})` : ''}`)
+          .join(', ')
+        setError(`${failure_count} dosya yüklenemedi: ${failedNames}`)
+      }
+      if (success_count > 0) {
+        setUploadSummary(`${success_count} görsel başarıyla yüklendi.`)
       }
       setCursor(null)
       await loadPage('reset', null)
@@ -195,6 +207,10 @@ export function CatalogAssetsPage() {
 
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        ) : null}
+
+        {uploadSummary ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{uploadSummary}</div>
         ) : null}
 
         <div className="rounded-2xl border border-border bg-card shadow-sm p-4 md:p-5">
