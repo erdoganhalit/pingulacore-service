@@ -97,6 +97,8 @@ export function CatalogAssetsPage() {
   const [mergeModalOpen, setMergeModalOpen] = useState(false)
   const [mergeFolderName, setMergeFolderName] = useState('')
   const [merging, setMerging] = useState(false)
+  const [availableFolders, setAvailableFolders] = useState<string[]>([])
+  const [loadingAvailableFolders, setLoadingAvailableFolders] = useState(false)
 
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
@@ -248,6 +250,20 @@ export function CatalogAssetsPage() {
     setError('')
     setUploadSummary('')
     setMergeModalOpen(true)
+
+    // Backend creates folders at root level only, so always fetch root folders
+    // regardless of where the user currently is.
+    setLoadingAvailableFolders(true)
+    void (async () => {
+      try {
+        const response = await api.listCatalogAssets({ limit: 1 })
+        setAvailableFolders(response.folders ?? [])
+      } catch {
+        setAvailableFolders([])
+      } finally {
+        setLoadingAvailableFolders(false)
+      }
+    })()
   }
 
   const handleMergeIntoFolder = async () => {
@@ -619,11 +635,46 @@ export function CatalogAssetsPage() {
                 <FolderPlus className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-medium">Klasör Olarak Birleştir</h2>
+                <h2 className="text-lg font-medium">Klasöre Taşı</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {selected.size} seçili görsel yeni bir klasöre taşınacak.
+                  {selected.size} seçili görsel için mevcut bir klasöre ekle veya yeni klasör oluştur.
                 </p>
               </div>
+            </div>
+
+            {/* Existing folders */}
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Mevcut Klasörler</label>
+              {loadingAvailableFolders ? (
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Yükleniyor...
+                </div>
+              ) : availableFolders.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Henüz klasör yok. Aşağıya bir isim yazarak yeni klasör oluştur.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {availableFolders.map((name) => {
+                    const isPicked = mergeFolderName.trim() === name
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setMergeFolderName(name)}
+                        disabled={merging}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                          isPicked
+                            ? 'border-primary bg-primary/15 text-foreground'
+                            : 'border-border bg-background hover:bg-accent text-foreground'
+                        }`}
+                        title={`'${name}' klasörüne ekle`}
+                      >
+                        <Folder className="w-3 h-3 text-amber-500" />
+                        {name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div>
@@ -636,13 +687,13 @@ export function CatalogAssetsPage() {
                   if (e.key === 'Enter' && mergeFolderName.trim()) void handleMergeIntoFolder()
                   if (e.key === 'Escape' && !merging) setMergeModalOpen(false)
                 }}
-                placeholder="örn: hayvanlar"
+                placeholder="örn: hayvanlar (mevcuta eklemek için yukarıdan seç)"
                 autoFocus
                 disabled={merging}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Sadece harf/rakam ve <code>_ . -</code> kullanılabilir; <code>/</code> ve <code>\</code> içeremez.
+                Mevcut bir klasör adı yazarsan görsel oraya eklenir; yeni bir isim yazarsan klasör oluşturulur. <code>/</code>, <code>\</code> ve <code>..</code> içeremez.
               </p>
             </div>
 
@@ -662,7 +713,7 @@ export function CatalogAssetsPage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {merging ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderPlus className="w-4 h-4" />}
-                Klasör Oluştur
+                {availableFolders.includes(mergeFolderName.trim()) ? 'Klasöre Ekle' : 'Klasör Oluştur'}
               </button>
             </div>
           </div>
