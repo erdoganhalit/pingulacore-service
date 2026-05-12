@@ -40,6 +40,7 @@ class AgentConfig:
     on_fail: Literal["error", "fallback"]
     fallback_model: str | None = None
     thinking_level: str = "medium"
+    temperature: float | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,9 @@ def _load_from_yaml(path: Path) -> AgentSettings:
         on_fail_raw = str(rs.get("on_fail", "error"))
         on_fail: Literal["error", "fallback"] = "fallback" if on_fail_raw == "fallback" else "error"
 
+        temperature_raw = rs.get("temperature")
+        temperature = float(temperature_raw) if temperature_raw is not None else None
+
         configs[name] = AgentConfig(
             instructions=instructions,
             primary_model=_resolve_model(str(rs["primary_model"])),
@@ -93,6 +97,7 @@ def _load_from_yaml(path: Path) -> AgentSettings:
             on_fail=on_fail,
             fallback_model=_resolve_model(str(rs["fallback_model"])) if rs.get("fallback_model") else None,
             thinking_level=str(rs.get("thinking_level", "medium")),
+            temperature=temperature,
         )
 
     return AgentSettings(**configs)

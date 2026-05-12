@@ -110,9 +110,12 @@ class AgentService:
                 self._emit(f"[agent] fallback model aktif: {candidate_model}")
 
             for attempt in range(1, config.primary_max_retry + 1):
+                model_settings: dict[str, Any] = {"thinking": config.thinking_level}
+                if config.temperature is not None:
+                    model_settings["temperature"] = config.temperature
                 agent = Agent(
                     model=candidate_model,
-                    model_settings={"thinking": config.thinking_level},
+                    model_settings=model_settings,
                     output_type=output_type,
                     system_prompt=config.instructions,
                     retries=1,
