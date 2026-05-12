@@ -441,6 +441,8 @@ class CatalogAssetItem(BaseModel):
 
 class CatalogAssetListResponse(BaseModel):
     items: list[CatalogAssetItem] = Field(default_factory=list)
+    folders: list[str] = Field(default_factory=list)
+    prefix: str | None = None
     next_cursor: str | None = None
     total_count: int
     query: str | None = None
@@ -470,6 +472,35 @@ class CatalogAssetBulkUploadResponse(BaseModel):
 class CatalogAssetDeleteResponse(BaseModel):
     key: str
     deleted: bool
+
+
+class CatalogAssetMoveRequest(BaseModel):
+    folder: str
+    keys: list[str] = Field(default_factory=list)
+
+
+class CatalogAssetMoveItemResult(BaseModel):
+    key: str
+    success: bool
+    new_key: str | None = None
+    error: str | None = None
+
+
+class CatalogAssetMoveResponse(BaseModel):
+    folder: str
+    results: list[CatalogAssetMoveItemResult] = Field(default_factory=list)
+    success_count: int
+    failure_count: int
+
+
+class CatalogAssetRenameRequest(BaseModel):
+    key: str
+    new_name: str
+
+
+class CatalogAssetRenameResponse(BaseModel):
+    old_key: str
+    new_key: str
 
 
 LegacyOutputNode.model_rebuild()

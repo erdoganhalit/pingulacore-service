@@ -68,6 +68,56 @@ class ObjectStorageService:
             kwargs["ContinuationToken"] = resp.get("NextContinuationToken")
         return items
 
+    def list_with_folders(
+        self,
+        *,
+        bucket: str,
+        prefix: str | None = None,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        """Return (files, folder_names) at the given prefix level using S3 delimiter mode.
+
+        Folders are immediate child prefixes (one level deep). File keys do not include
+        the trailing slash. folder_names are returned without the parent prefix and
+        without the trailing slash.
+        """
+        kwargs: dict[str, Any] = {"Bucket": bucket, "MaxKeys": 1000, "Delimiter": "/"}
+        if prefix:
+            kwargs["Prefix"] = prefix
+        items: list[dict[str, Any]] = []
+        folder_names: list[str] = []
+        while True:
+            resp: dict[str, Any] = self.client.list_objects_v2(**kwargs)
+            for row in resp.get("Contents", []):
+                key = str(row.get("Key") or "")
+                if key.endswith("/"):
+                    continue
+                items.append(
+                    {
+                        "key": key,
+                        "size": int(row.get("Size") or 0),
+                        "last_modified": row.get("LastModified"),
+                    }
+                )
+            for cp in resp.get("CommonPrefixes", []):
+                full_prefix = str(cp.get("Prefix") or "")
+                inner = full_prefix[len(prefix):] if prefix else full_prefix
+                inner = inner.rstrip("/")
+                if inner:
+                    folder_names.append(inner)
+            if not resp.get("IsTruncated"):
+                break
+            kwargs["ContinuationToken"] = resp.get("NextContinuationToken")
+        folder_names.sort()
+        return items, folder_names
+
+    def copy_object(self, *, bucket: str, source_key: str, dest_key: str) -> None:
+        """Server-side copy within the same bucket. No data transferred locally."""
+        self.client.copy_object(
+            Bucket=bucket,
+            Key=dest_key,
+            CopySource={"Bucket": bucket, "Key": source_key},
+        )
+
     def object_exists(self, *, bucket: str, key: str) -> bool:
         try:
             self.client.head_object(Bucket=bucket, Key=key)

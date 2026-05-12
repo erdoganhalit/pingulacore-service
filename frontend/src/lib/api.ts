@@ -9,6 +9,8 @@ import type {
   CatalogAssetBulkUploadResponse,
   CatalogAssetDeleteResponse,
   CatalogAssetListResponse,
+  CatalogAssetMoveResponse,
+  CatalogAssetRenameResponse,
   CatalogAssetUploadResponse,
   CurriculumNodeItem,
   ExplorerFavoritePayload,
@@ -462,34 +464,51 @@ export const api = {
     return apiFetch<FavoriteItem[]>(`/v1/favorites${suffix}`)
   },
 
-  listCatalogAssets: (params?: { cursor?: string; limit?: number; query?: string }) =>
+  listCatalogAssets: (params?: { cursor?: string; limit?: number; query?: string; prefix?: string }) =>
     apiFetch<CatalogAssetListResponse>(
       withQuery('/v1/catalog-assets', {
         cursor: params?.cursor,
         limit: params?.limit ?? 10,
         query: params?.query,
+        prefix: params?.prefix,
       }),
     ),
 
-  uploadCatalogAsset: (file: File) => {
+  uploadCatalogAsset: (file: File, prefix?: string) => {
     const formData = new FormData()
     formData.append('file', file)
-    return apiFetch<CatalogAssetUploadResponse>('/v1/catalog-assets', {
+    const url = withQuery('/v1/catalog-assets', { prefix })
+    return apiFetch<CatalogAssetUploadResponse>(url, {
       method: 'POST',
       body: formData,
     })
   },
 
-  uploadCatalogAssetsBulk: (files: File[]) => {
+  uploadCatalogAssetsBulk: (files: File[], prefix?: string) => {
     const formData = new FormData()
     for (const file of files) {
       formData.append('files', file)
     }
-    return apiFetch<CatalogAssetBulkUploadResponse>('/v1/catalog-assets/bulk', {
+    const url = withQuery('/v1/catalog-assets/bulk', { prefix })
+    return apiFetch<CatalogAssetBulkUploadResponse>(url, {
       method: 'POST',
       body: formData,
     })
   },
+
+  moveCatalogAssetsIntoFolder: (folder: string, keys: string[]) =>
+    apiFetch<CatalogAssetMoveResponse>('/v1/catalog-assets/move-into-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder, keys }),
+    }),
+
+  renameCatalogAsset: (key: string, newName: string) =>
+    apiFetch<CatalogAssetRenameResponse>('/v1/catalog-assets/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, new_name: newName }),
+    }),
 
   deleteCatalogAsset: (key: string) =>
     apiFetch<CatalogAssetDeleteResponse>(`/v1/catalog-assets/${encodeURIComponent(key)}`, {
