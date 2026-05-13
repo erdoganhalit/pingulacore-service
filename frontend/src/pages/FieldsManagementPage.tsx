@@ -499,14 +499,6 @@ export function FieldsManagementPage() {
         <div className="rounded-[28px] border border-border bg-card px-8 py-7 shadow-xl">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <button
-                type="button"
-                onClick={() => navigate('/content')}
-                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Müfredat Yönetimi
-              </button>
               <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg" style={{ background: 'linear-gradient(to bottom right, var(--primary), var(--secondary))' }}>
                 <Sparkles className="h-7 w-7" />
               </div>
@@ -562,7 +554,16 @@ export function FieldsManagementPage() {
         ) : (
           <div className="rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div>
+              {/* W */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/content')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-1.5 text-lg font-medium text-foreground hover:bg-accent"
+                >
+                  <ArrowLeft className="h-6 w-6" />
+                  Müfredat Yönetimi'ne Dön
+                </button>
                 <div className="text-sm font-medium text-foreground">Property Ağacı</div>
                 <div className="text-xs text-muted-foreground">{effective.length} property (kendi + miras)</div>
               </div>
