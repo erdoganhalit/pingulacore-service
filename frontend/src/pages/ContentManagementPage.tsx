@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
   BookOpen,
@@ -2108,285 +2109,11 @@ function DetailChip({ label, value }: { label: string; value: string }) {
   )
 }
 
-interface NodePropertyManagerModalProps {
-  open: boolean
-  node: CurriculumNodeItem | null
-  allProperties: PropertyDefinitionItem[]
-  onClose: () => void
-  refreshProperties: () => Promise<PropertyDefinitionItem[]>
-  setNotice: (notice: NoticeState) => void
-}
-
-function NodePropertyManagerModal({
-  open,
-  node,
-  allProperties,
-  onClose,
-  refreshProperties,
-  setNotice,
-}: NodePropertyManagerModalProps) {
-  const [label, setLabel] = useState('')
-  const [propertyKey, setPropertyKey] = useState('')
-  const [canonicalPath, setCanonicalPath] = useState('')
-  const [dataType, setDataType] = useState<PropertyDataType>('text')
-  const [defaultValue, setDefaultValue] = useState('')
-  const [description, setDescription] = useState('')
-  const [parentPropertyId, setParentPropertyId] = useState('')
-  const [isRequired, setIsRequired] = useState(false)
-  const [effectiveParents, setEffectiveParents] = useState<PropertyDefinitionItem[]>([])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [keyTouched, setKeyTouched] = useState(false)
-  const [pathTouched, setPathTouched] = useState(false)
-
-  useEffect(() => {
-    if (!open || !node) return
-    setLabel('')
-    setPropertyKey('')
-    setCanonicalPath('')
-    setDataType('text')
-    setDefaultValue('')
-    setDescription('')
-    setParentPropertyId('')
-    setIsRequired(false)
-    setError('')
-    setBusy(false)
-    setKeyTouched(false)
-    setPathTouched(false)
-    void api.getEffectiveProperties(node.id)
-      .then((rows) => setEffectiveParents(rows))
-      .catch((err) => setError(parseError(err, 'Parent property listesi alınamadı')))
-  }, [open, node])
-
-  const nodeProperties = useMemo(
-    () => allProperties
-      .filter((item) => item.defined_at_curriculum_node_id === node?.id)
-      .sort((a, b) => a.canonical_path.localeCompare(b.canonical_path)),
-    [allProperties, node?.id],
-  )
-
-  const propertyMap = useMemo(() => new Map(allProperties.map((item) => [item.id, item])), [allProperties])
-
-  const parentLabel = (propertyId?: string | null) => {
-    if (!propertyId) return '-'
-    const parent = propertyMap.get(propertyId)
-    if (!parent) return `Silinmiş parent (${propertyId})`
-    return `${parent.label} · ${parent.canonical_path}`
-  }
-
-  const parentChain = (item: PropertyDefinitionItem): string => {
-    const names: string[] = []
-    let cursor = item.parent_property_id
-    let guard = 0
-    while (cursor && guard < 20) {
-      const parent = propertyMap.get(cursor)
-      if (!parent) break
-      names.unshift(parent.label || parent.property_key)
-      cursor = parent.parent_property_id
-      guard += 1
-    }
-    return names.length > 0 ? names.join(' > ') : '-'
-  }
-
-  const handleLabelChange = (value: string) => {
-    setLabel(value)
-    const generated = toSchemaKey(value)
-    if (!keyTouched) setPropertyKey(generated)
-    if (!pathTouched) setCanonicalPath(generated)
-  }
-
-  const handleCreate = async () => {
-    if (!node) return
-    setBusy(true)
-    setError('')
-    try {
-      const trimmedLabel = label.trim()
-      const trimmedKey = propertyKey.trim()
-      const trimmedPath = canonicalPath.trim()
-      if (!trimmedLabel || !trimmedKey || !trimmedPath) {
-        throw new Error('Label, property key ve canonical path zorunlu')
-      }
-      await api.createProperty({
-        defined_at_curriculum_node_id: node.id,
-        parent_property_id: parentPropertyId || null,
-        label: trimmedLabel,
-        description: description.trim() || null,
-        property_key: trimmedKey,
-        canonical_path: trimmedPath,
-        data_type: dataType,
-        default_value: dataType === 'object' ? null : (defaultValue.trim() || null),
-        is_required: isRequired,
-      })
-      await refreshProperties()
-      setNotice({ tone: 'success', message: `${node.name} için yeni property eklendi.` })
-      setLabel('')
-      setPropertyKey('')
-      setCanonicalPath('')
-      setDefaultValue('')
-      setDescription('')
-      setParentPropertyId('')
-      setIsRequired(false)
-      setKeyTouched(false)
-      setPathTouched(false)
-    } catch (err) {
-      setError(parseError(err, 'Property oluşturulamadı'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleDelete = async (item: PropertyDefinitionItem) => {
-    setBusy(true)
-    setError('')
-    try {
-      await api.deleteProperty(item.id)
-      await refreshProperties()
-      setNotice({ tone: 'success', message: `Property silindi: ${item.label}` })
-      if (parentPropertyId === item.id) setParentPropertyId('')
-    } catch (err) {
-      setError(parseError(err, 'Property silinemedi'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={node ? `${node.name} · Alanları Yönet` : 'Alanları Yönet'} size="wide">
-      <div className="space-y-5 p-6">
-        {node ? <div className="text-xs text-muted-foreground">{node.path}</div> : null}
-        {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="mb-3 text-sm font-medium text-foreground">Yeni Property Ekle</div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Label</label>
-              <input value={label} onChange={(e) => handleLabelChange(e.target.value)} className={inputClass} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Data Type</label>
-              <select
-                value={dataType}
-                onChange={(e) => {
-                  const nextType = e.target.value as PropertyDataType
-                  setDataType(nextType)
-                  if (nextType === 'object') setDefaultValue('')
-                }}
-                className={selectClass}
-              >
-                {DATA_TYPE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Property Key</label>
-              <input
-                value={propertyKey}
-                onChange={(e) => {
-                  setKeyTouched(true)
-                  setPropertyKey(e.target.value)
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Canonical Path</label>
-              <input
-                value={canonicalPath}
-                onChange={(e) => {
-                  setPathTouched(true)
-                  setCanonicalPath(e.target.value)
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Description</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} className={textareaClass} rows={3} />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Default Value</label>
-              <input
-                value={defaultValue}
-                onChange={(e) => setDefaultValue(e.target.value)}
-                className={inputClass}
-                disabled={dataType === 'object'}
-                placeholder={dataType === 'array' ? 'deger1;deger2;deger3' : 'Varsayılan değer'}
-              />
-              {dataType === 'array' ? (
-                <div className="text-xs text-muted-foreground">Array tipinde öğeleri `;` ile ayır.</div>
-              ) : null}
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Parent Property</label>
-              <select value={parentPropertyId} onChange={(e) => setParentPropertyId(e.target.value)} className={selectClass}>
-                <option value="">Parent yok</option>
-                {effectiveParents.map((item) => (
-                  <option key={item.id} value={item.id}>{item.label} · {item.canonical_path}</option>
-                ))}
-              </select>
-            </div>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
-              <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
-              Zorunlu alan
-            </label>
-          </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void handleCreate()}
-              disabled={busy || !node}
-              className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
-            >
-              {busy ? 'Kaydediliyor...' : 'Property Ekle'}
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-sm font-medium text-foreground">Bu Node'da Tanımlı Property'ler ({nodeProperties.length})</div>
-          <div className="max-h-[380px] space-y-3 overflow-auto p-4">
-            {nodeProperties.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground">Bu node'da tanımlı property yok.</div>
-            ) : nodeProperties.map((item) => (
-              <div key={item.id} className="rounded-xl border border-border bg-background p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">{item.label}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{item.canonical_path}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{item.data_type}</span>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(item)}
-                      disabled={busy}
-                      className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      Sil
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                  <div><span className="font-medium text-foreground">Parent:</span> {parentLabel(item.parent_property_id)}</div>
-                  <div><span className="font-medium text-foreground">Parent Zinciri:</span> {parentChain(item)}</div>
-                  <div><span className="font-medium text-foreground">Default:</span> {item.default_value || '-'}</div>
-                  <div><span className="font-medium text-foreground">Required:</span> {item.is_required ? 'true' : 'false'}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
 export function ContentManagementPage() {
+  const navigate = useNavigate()
   const [notice, setNotice] = useState<NoticeState | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState('')
   const [curriculumTree, setCurriculumTree] = useState<CurriculumNodeItem[]>([])
-  const [properties, setProperties] = useState<PropertyDefinitionItem[]>([])
   const [templates, setTemplates] = useState<YamlTemplateItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2394,17 +2121,10 @@ export function ContentManagementPage() {
   const [treeCreatePrefilledFields, setTreeCreatePrefilledFields] = useState<SchemaFieldDraft[]>([])
   const [folderPromptUnite, setFolderPromptUnite] = useState<CurriculumNodeItem | null>(null)
   const [folderPromptBusy, setFolderPromptBusy] = useState(false)
-  const [propertyManagerNode, setPropertyManagerNode] = useState<CurriculumNodeItem | null>(null)
 
   const loadCurriculumTree = async () => {
     const rows = await api.getCurriculumTree()
     setCurriculumTree(rows)
-    return rows
-  }
-
-  const loadProperties = async () => {
-    const rows = await api.listProperties()
-    setProperties(rows)
     return rows
   }
 
@@ -2418,7 +2138,7 @@ export function ContentManagementPage() {
     void (async () => {
       setLoading(true)
       try {
-        await Promise.all([loadCurriculumTree(), loadProperties(), loadTemplates()])
+        await Promise.all([loadCurriculumTree(), loadTemplates()])
       } catch (error) {
         setNotice({ tone: 'error', message: parseError(error, 'İçerik yönetimi verileri yüklenemedi') })
       } finally {
@@ -2540,18 +2260,9 @@ export function ContentManagementPage() {
             fullHeight
             templates={templates}
             onAddTemplate={handleAddTemplate}
-            onManageProperties={(node) => setPropertyManagerNode(node)}
+            onManageProperties={(node) => navigate(`/content/fields/${node.id}`)}
           />
         )}
-
-        <NodePropertyManagerModal
-          open={propertyManagerNode !== null}
-          node={propertyManagerNode}
-          allProperties={properties}
-          onClose={() => setPropertyManagerNode(null)}
-          refreshProperties={loadProperties}
-          setNotice={setNotice}
-        />
 
         <TemplateFormModal
           open={treeCreateFolderId !== null}

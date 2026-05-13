@@ -20,6 +20,7 @@ import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
 import { CatalogAssetsPage } from './pages/CatalogAssetsPage'
 import { ContentManagementPage } from './pages/ContentManagementPage'
+import { FieldsManagementPage } from './pages/FieldsManagementPage'
 import { FilesPage } from './pages/FilesPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
 import { HomePage } from './pages/HomePage'
@@ -183,6 +184,7 @@ function AppLayout() {
           <Route path="/legacy" element={<LegacyPipelinePage />} />
           <Route path="/catalog-assets" element={<CatalogAssetsPage />} />
           <Route path="/content" element={<ContentManagementPage />} />
+          <Route path="/content/fields/:nodeId" element={<FieldsManagementPage />} />
           <Route path="/content/yaml-create" element={<YamlCreatePage />} />
           <Route path="/templates" element={<Navigate to="/content" replace />} />
         </Routes>
