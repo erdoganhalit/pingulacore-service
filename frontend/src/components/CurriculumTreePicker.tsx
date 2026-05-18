@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, MapPinned, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, MapPinned, Plus, Trash2 } from 'lucide-react'
 
 import type { CurriculumNodeItem, CurriculumNodeScope, YamlTemplateItem } from '../types'
 
@@ -17,6 +17,7 @@ interface CurriculumTreePickerProps {
   onSelectTemplate?: (template: YamlTemplateItem) => void
   onAddTemplate?: (node: CurriculumNodeItem) => void
   onManageProperties?: (node: CurriculumNodeItem) => void
+  onDeleteNode?: (node: CurriculumNodeItem) => void
 }
 
 // depth 0=Root, 1=Grade, 2=Subject, 3=Unit, 4+=Folder
@@ -90,6 +91,7 @@ export function CurriculumTreePicker({
   onSelectTemplate,
   onAddTemplate,
   onManageProperties,
+  onDeleteNode,
 }: CurriculumTreePickerProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(collectDefaultExpanded(nodes)))
 

@@ -80,6 +80,7 @@ class PropertyResponse(BaseModel):
     constraints: Any | None = None
     is_required: bool
     is_active: bool
+    created_at: str
 
 
 class YamlTemplateCreateRequest(BaseModel):

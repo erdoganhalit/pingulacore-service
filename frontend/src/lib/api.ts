@@ -227,6 +227,9 @@ export const api = {
 
   getCurriculumTree: () => apiFetch<CurriculumNodeItem[]>('/v1/curriculum/tree'),
 
+  deleteCurriculumNode: (nodeId: string) =>
+    apiFetch<void>(`/v1/curriculum/nodes/${nodeId}`, { method: 'DELETE' }),
+
   createCurriculumNode: (payload: {
     parent_id?: string | null
     name: string

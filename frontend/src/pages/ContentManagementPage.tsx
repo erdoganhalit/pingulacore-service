@@ -1557,6 +1557,7 @@ export function PropertiesTab({
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [search, setSearch] = useState('')
   const [activeOnly, setActiveOnly] = useState(false)
+  const [sortOrder, setSortOrder] = useState<'created' | 'alpha'>('created')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PropertyDefinitionItem | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -1569,13 +1570,19 @@ export function PropertiesTab({
 
   const filteredProperties = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return allProperties.filter((item) => {
+    const filtered = allProperties.filter((item) => {
       if (selectedNodeId && item.defined_at_curriculum_node_id !== selectedNodeId) return false
       if (activeOnly && !item.is_active) return false
       if (!term) return true
       return [item.label, item.property_key, item.canonical_path].some((value) => value.toLowerCase().includes(term))
     })
-  }, [activeOnly, allProperties, search, selectedNodeId])
+    if (sortOrder === 'alpha') {
+      filtered.sort((a, b) => a.label.localeCompare(b.label, 'tr'))
+    } else {
+      filtered.sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+    }
+    return filtered
+  }, [activeOnly, allProperties, search, selectedNodeId, sortOrder])
 
   useEffect(() => {
     if (!filteredProperties.some((item) => item.id === selectedPropertyId)) {
@@ -1629,10 +1636,28 @@ export function PropertiesTab({
             onAdd={() => setModalMode('create')}
             onRefresh={() => void refreshProperties()}
             filters={(
-              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
-                <input type="checkbox" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} />
-                Sadece aktifler
-              </label>
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+                  <input type="checkbox" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} />
+                  Sadece aktifler
+                </label>
+                <div className="inline-flex overflow-hidden rounded-xl border border-border bg-card text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('created')}
+                    className={`px-3 py-2 font-medium transition-colors ${sortOrder === 'created' ? 'bg-primary text-white' : 'text-foreground hover:bg-accent'}`}
+                  >
+                    Oluşturma tarihi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('alpha')}
+                    className={`px-3 py-2 font-medium transition-colors ${sortOrder === 'alpha' ? 'bg-primary text-white' : 'text-foreground hover:bg-accent'}`}
+                  >
+                    Alfabetik
+                  </button>
+                </div>
+              </div>
             )}
           />
 

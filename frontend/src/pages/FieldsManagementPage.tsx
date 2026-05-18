@@ -51,7 +51,7 @@ interface PropertyTreeNode {
   children: PropertyTreeNode[]
 }
 
-function buildPropertyTree(items: PropertyDefinitionItem[]): PropertyTreeNode[] {
+function buildPropertyTree(items: PropertyDefinitionItem[], sortOrder: 'created' | 'alpha'): PropertyTreeNode[] {
   const byId = new Map<string, PropertyTreeNode>()
   for (const item of items) byId.set(item.id, { property: item, children: [] })
   const roots: PropertyTreeNode[] = []
@@ -63,8 +63,11 @@ function buildPropertyTree(items: PropertyDefinitionItem[]): PropertyTreeNode[] 
       roots.push(node)
     }
   }
+  const compare = sortOrder === 'alpha'
+    ? (a: PropertyTreeNode, b: PropertyTreeNode) => a.property.label.localeCompare(b.property.label, 'tr')
+    : (a: PropertyTreeNode, b: PropertyTreeNode) => (a.property.created_at ?? '').localeCompare(b.property.created_at ?? '')
   const sortRec = (list: PropertyTreeNode[]) => {
-    list.sort((a, b) => a.property.label.localeCompare(b.property.label))
+    list.sort(compare)
     list.forEach((n) => sortRec(n.children))
   }
   sortRec(roots)
@@ -424,6 +427,7 @@ export function FieldsManagementPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const [addModal, setAddModal] = useState<{ open: boolean; parent: PropertyDefinitionItem | null }>({ open: false, parent: null })
+  const [sortOrder, setSortOrder] = useState<'created' | 'alpha'>('created')
 
   const reload = async () => {
     if (!nodeId) return
@@ -464,7 +468,7 @@ export function FieldsManagementPage() {
     return map
   }, [tree])
 
-  const propertyRoots = useMemo(() => buildPropertyTree(effective), [effective])
+  const propertyRoots = useMemo(() => buildPropertyTree(effective, sortOrder), [effective, sortOrder])
 
   const handleAddChild = (parent: PropertyDefinitionItem) => {
     setAddModal({ open: true, parent })
@@ -567,16 +571,34 @@ export function FieldsManagementPage() {
                 <div className="text-sm font-medium text-foreground">Property Ağacı</div>
                 <div className="text-xs text-muted-foreground">{effective.length} property (kendi + miras)</div>
               </div>
-              <button
-                type="button"
-                onClick={handleAddRoot}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
-              >
-                <Plus className="h-4 w-4" />
-                Yeni Kök Alan
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex overflow-hidden rounded-xl border border-border bg-card text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('created')}
+                    className={`px-3 py-2 font-medium transition-colors ${sortOrder === 'created' ? 'bg-primary text-white' : 'text-foreground hover:bg-accent'}`}
+                  >
+                    Oluşturma tarihi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('alpha')}
+                    className={`px-3 py-2 font-medium transition-colors ${sortOrder === 'alpha' ? 'bg-primary text-white' : 'text-foreground hover:bg-accent'}`}
+                  >
+                    Alfabetik
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddRoot}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Yeni Kök Alan
+                </button>
+              </div>
             </div>
             <div className="p-4">
               <PropertyTreeView

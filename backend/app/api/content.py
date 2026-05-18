@@ -79,6 +79,7 @@ def _property_response(row: Any) -> PropertyResponse:
         constraints=_json(row.constraints_json),
         is_required=row.is_required,
         is_active=row.is_active,
+        created_at=row.created_at.isoformat(),
     )
 
 

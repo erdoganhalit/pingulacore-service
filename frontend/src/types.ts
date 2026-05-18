@@ -105,6 +105,7 @@ export interface PropertyDefinitionItem {
   constraints?: unknown
   is_required: boolean
   is_active: boolean
+  created_at?: string
 }
 
 export interface PropertyDefinitionCreatePayload {
