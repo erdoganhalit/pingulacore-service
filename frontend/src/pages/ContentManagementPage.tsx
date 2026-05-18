@@ -2239,6 +2239,19 @@ export function ContentManagementPage() {
 
   const folderNodes = useMemo(() => flattenCurriculumNodes(curriculumTree).filter((n) => n.scope === 'folder'), [curriculumTree])
 
+  const handleDeleteNode = async (node: CurriculumNodeItem) => {
+    const childCount = node.children.length
+    const warning = childCount > 0 ? ` Bu node'un ${childCount} alt node'u var — hepsi de silinecek.` : ''
+    if (!confirm(`"${node.name}" node'unu silmek istediğine emin misin?${warning}`)) return
+    try {
+      await api.deleteCurriculumNode(node.id)
+      await loadCurriculumTree()
+      setNotice({ tone: 'success', message: `Node silindi: ${node.name}` })
+    } catch (error) {
+      setNotice({ tone: 'error', message: parseError(error, 'Node silinemedi') })
+    }
+  }
+
   return (
     <div className="p-8 max-w-[1680px] mx-auto">
       <motion.div
@@ -2286,6 +2299,7 @@ export function ContentManagementPage() {
             templates={templates}
             onAddTemplate={handleAddTemplate}
             onManageProperties={(node) => navigate(`/content/fields/${node.id}`)}
+            onDeleteNode={(node) => void handleDeleteNode(node)}
           />
         )}
 

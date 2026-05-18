@@ -129,6 +129,7 @@ export function CurriculumTreePicker({
       !!onAddTemplate &&
       ((node.depth === 3 && node.scope === 'constant') || (node.depth === 4 && node.scope === 'folder'))
     const canManageProperties = !!onManageProperties
+    const canDelete = !!onDeleteNode && (node.scope === 'constant' || node.scope === 'folder')
 
     return (
       <div key={node.id} className="space-y-1">
@@ -196,6 +197,20 @@ export function CurriculumTreePicker({
               title="Alanları Yönet"
             >
               Alanları Yönet
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeleteNode?.(node)
+              }}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50"
+              aria-label="Node sil"
+              title="Node sil"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
