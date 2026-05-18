@@ -421,7 +421,7 @@ export function LegacyPipelinePage() {
                       <span className="text-base font-medium">{p.label}</span>
                       {!p.enabled && (
                         <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          disabled
+                          devre dışı
                         </span>
                       )}
                     </div>
@@ -680,7 +680,7 @@ export function LegacyPipelinePage() {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      Difficulty
+                      Zorluk
                     </label>
                     <select
                       value={difficulty}
@@ -820,7 +820,7 @@ export function LegacyPipelinePage() {
           connected={connected}
           done={done}
           active={active}
-          title="Legacy Pipeline Logs"
+          title="Legacy Pipeline Logları"
         />
       </motion.div>
 

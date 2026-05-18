@@ -199,7 +199,7 @@ export function LayoutOutputDisplay({ data, title = 'Layout Output' }: Props) {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <ImageIcon className="w-4 h-4 text-primary" />
-                <h5 className="text-sm text-foreground">Asset Library</h5>
+                <h5 className="text-sm text-foreground">Asset Kütüphanesi</h5>
               </div>
               {assetEntries.length === 0 ? (
                 <div className="text-sm text-muted-foreground bg-white/50 rounded-lg border border-border p-3">
@@ -233,7 +233,7 @@ export function LayoutOutputDisplay({ data, title = 'Layout Output' }: Props) {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Layers className="w-4 h-4 text-primary" />
-                <h5 className="text-sm text-foreground">Layout Tree</h5>
+                <h5 className="text-sm text-foreground">Layout Ağacı</h5>
               </div>
               <div className="rounded-lg border border-border bg-white/50 p-3">
                 {treeRoot ? <LayoutTree node={treeRoot} /> : (
@@ -245,10 +245,10 @@ export function LayoutOutputDisplay({ data, title = 'Layout Output' }: Props) {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Grid3X3 className="w-4 h-4 text-primary" />
-                <h5 className="text-sm text-foreground">Summary</h5>
+                <h5 className="text-sm text-foreground">Özet</h5>
               </div>
               <div className="rounded-lg border border-border bg-white/70 p-3 text-sm text-muted-foreground">
-                <p>Total assets: {assetEntries.length}</p>
+                <p>Toplam asset: {assetEntries.length}</p>
                 <p>Root bindings: {treeRoot?.bindings.length ?? 0}</p>
                 <p>Root children: {treeRoot?.children.length ?? 0}</p>
               </div>

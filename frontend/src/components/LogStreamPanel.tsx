@@ -69,16 +69,16 @@ export function LogStreamPanel({ lines, connected, done, title, active = false }
             <div className="flex items-center gap-2">
               <Terminal className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-medium text-gray-200">{title}</span>
-              <span className="text-xs text-gray-500">({lines.length} lines)</span>
+              <span className="text-xs text-gray-500">({lines.length} satır)</span>
             </div>
             <div className="flex items-center gap-3">
               {connected && (
                 <span className="flex items-center gap-1.5 text-xs text-green-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                  live
+                  canlı
                 </span>
               )}
-              {done && <span className="text-xs text-gray-500">done</span>}
+              {done && <span className="text-xs text-gray-500">tamamlandı</span>}
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
@@ -114,7 +114,7 @@ export function LogStreamPanel({ lines, connected, done, title, active = false }
       >
         <Terminal className="w-4 h-4" style={{ color: connected ? '#4ade80' : active && !done ? '#f59e0b' : '#6b7280' }} />
         <span style={{ color: connected ? '#4ade80' : active && !done ? '#f59e0b' : '#9ca3af' }}>
-          {connected ? 'Live Logs' : active && !done ? 'Connecting…' : 'Logs'}
+          {connected ? 'Canlı Loglar' : active && !done ? 'Bağlanıyor…' : 'Loglar'}
         </span>
         {connected && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />}
         {active && !connected && !done && (

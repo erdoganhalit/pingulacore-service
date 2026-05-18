@@ -119,7 +119,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
                 </h4>
                 <div className="flex gap-3 text-xs">
                   <span className="px-2 py-1 rounded bg-primary/20 text-primary">
-                    Grade {asText(question.grade) || 'N/A'}
+                    Sınıf {asText(question.grade) || 'N/A'}
                   </span>
                   <span className="px-2 py-1 rounded bg-secondary/20 text-secondary capitalize">
                     {asText(question.difficulty) || 'N/A'}
@@ -136,7 +136,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="w-4 h-4 text-primary" />
-                <h5 className="text-sm text-foreground">Question Stem</h5>
+                <h5 className="text-sm text-foreground">Soru Kökü</h5>
               </div>
               <p className="text-sm bg-white/50 rounded-lg p-3 border border-border">
                 {asText(question.stem) || 'N/A'}
@@ -145,18 +145,18 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
 
             {scenario && (
               <div>
-                <h5 className="text-sm text-foreground mb-2">Scenario</h5>
+                <h5 className="text-sm text-foreground mb-2">Senaryo</h5>
                 <div className="bg-white/50 rounded-lg p-4 border border-border space-y-3">
                   {asText(scenario.story) && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Story</p>
+                      <p className="text-xs text-muted-foreground mb-1">Hikaye</p>
                       <p className="text-sm">{asText(scenario.story)}</p>
                     </div>
                   )}
 
                   {entities.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Entities</p>
+                      <p className="text-xs text-muted-foreground mb-2">Varlıklar</p>
                       <div className="space-y-2">
                         {entities.map((entity, idx) => {
                           const item = isRecord(entity) ? entity : {}
@@ -179,7 +179,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
 
                   {characters.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Characters</p>
+                      <p className="text-xs text-muted-foreground mb-2">Karakterler</p>
                       <div className="space-y-2">
                         {characters.map((char, idx) => {
                           const item = isRecord(char) ? char : {}
@@ -201,7 +201,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
 
                   {scenes.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Scenes</p>
+                      <p className="text-xs text-muted-foreground mb-2">Sahneler</p>
                       <div className="space-y-2">
                         {scenes.map((scene, idx) => {
                           const item = isRecord(scene) ? scene : {}
@@ -211,14 +211,14 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`w-2 h-2 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-400'}`} />
                                 <span className="text-xs text-muted-foreground">
-                                  {enabled ? 'Enabled' : 'Disabled'}
+                                  {enabled ? 'Etkin' : 'Devre dışı'}
                                 </span>
                               </div>
                               {asText(item.description_prompt) && (
                                 <p className="text-xs text-muted-foreground">{asText(item.description_prompt)}</p>
                               )}
                               {asText(item.color_scheme) && (
-                                <p className="text-xs text-muted-foreground">Color: {asText(item.color_scheme)}</p>
+                                <p className="text-xs text-muted-foreground">Renk: {asText(item.color_scheme)}</p>
                               )}
                             </div>
                           )
@@ -232,7 +232,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
 
             {options.length > 0 && (
               <div>
-                <h5 className="text-sm text-foreground mb-2">Options</h5>
+                <h5 className="text-sm text-foreground mb-2">Şıklar</h5>
                 <div className="space-y-2">
                   {options.map((option, idx) => {
                     const item = isRecord(option) ? option : {}
@@ -264,7 +264,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
                               ) : (
                                 <ImageIcon className="w-4 h-4 text-muted-foreground" />
                               )}
-                              <span className="text-xs text-muted-foreground capitalize">{modality || 'unknown'}</span>
+                              <span className="text-xs text-muted-foreground capitalize">{modality || 'bilinmiyor'}</span>
                             </div>
 
                             {modality === 'text' ? (
@@ -293,7 +293,7 @@ export function QuestionOutputDisplay({ data, title = 'Question Output' }: Props
 
             {solution.length > 0 && (
               <div>
-                <h5 className="text-sm text-foreground mb-2">Solution</h5>
+                <h5 className="text-sm text-foreground mb-2">Çözüm</h5>
                 <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                   {solution.map((step, idx) => (
                     <p key={idx} className="text-sm text-blue-900">

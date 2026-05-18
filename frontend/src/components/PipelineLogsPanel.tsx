@@ -67,12 +67,12 @@ export function PipelineLogsPanel({ title, logs, onRefresh, defaultOpen }: Pipel
           )}
           {errorCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 border border-red-200 text-red-700">
-              {errorCount} error
+              {errorCount} hata
             </span>
           )}
           {warnCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 border border-amber-200 text-amber-700">
-              {warnCount} warning
+              {warnCount} uyarı
             </span>
           )}
         </button>

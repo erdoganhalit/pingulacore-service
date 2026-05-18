@@ -452,7 +452,7 @@ function EditableFieldList({ fields, onChange, level = 0 }: EditableFieldListPro
               className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-accent"
             >
               <Plus className="h-3.5 w-3.5" />
-              Child Alan
+              Alt Alan
             </button>
             <button
               type="button"
@@ -866,7 +866,7 @@ export function TemplatesPage() {
                       onClick={() => startChildDraft(selectedTemplate.id)}
                       className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-accent"
                     >
-                      Seçilenden Child Oluştur
+                      Seçilenden Alt Şablon Oluştur
                     </button>
                   )}
                 </div>
@@ -893,7 +893,7 @@ export function TemplatesPage() {
 
               {selectedTemplate && (
                 <div className="mt-4 rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Inheritance Chain</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Kalıtım Zinciri</p>
                   <p className="mt-1 text-sm text-foreground">
                     {inheritanceChain.map((template) => template.name).join(' -> ')}
                   </p>
@@ -959,7 +959,7 @@ export function TemplatesPage() {
                       }
                       className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     >
-                      <option value="">Parent yok</option>
+                      <option value="">Üst öğe yok</option>
                       {templates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
@@ -1067,7 +1067,7 @@ export function TemplatesPage() {
                       }
                       className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent"
                     >
-                      Parent Öner
+                      Üst Öğe Öner
                     </button>
                     <button
                       type="button"
@@ -1075,7 +1075,7 @@ export function TemplatesPage() {
                       disabled={!draft.parentId}
                       className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent disabled:opacity-40"
                     >
-                      Parent Alanları ile Auto-fill
+                      Üst Öğe Alanlarını Otomatik Doldur
                     </button>
                   </div>
 

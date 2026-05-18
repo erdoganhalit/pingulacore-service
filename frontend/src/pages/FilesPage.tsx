@@ -296,14 +296,14 @@ export function FilesPage() {
     }
 
     if (preview.content_type === 'json') {
-      return <JsonPanel title="JSON Preview" data={preview.content} size="large" />
+      return <JsonPanel title="JSON Önizleme" data={preview.content} size="large" />
     }
     if (preview.content_type === 'html') {
       const htmlSource = htmlOverride ?? String(preview.content ?? '')
       return (
         <HtmlViewer
           html={htmlSource}
-          title="HTML Preview"
+          title="HTML Önizleme"
           fillHeight
           onEditClick={() => setEditorOpen(true)}
         />
@@ -339,7 +339,7 @@ export function FilesPage() {
       >
         <div>
           <h1 className="text-3xl mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-            Files & Favorites
+            Dosyalar & Favoriler
           </h1>
           <p className="text-muted-foreground">runs ve sp_files içeriklerini ağaç görünümünde yönet.</p>
         </div>
@@ -416,7 +416,7 @@ export function FilesPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>
-                  Preview
+                  Önizleme
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {selected ? `${selected.root}/${selected.path}` : 'Dosya seçilmedi'}
@@ -457,7 +457,7 @@ export function FilesPage() {
           open={editorOpen}
           onClose={() => setEditorOpen(false)}
           size="full"
-          title="HTML Layout Editor"
+          title="HTML Layout Düzenleyici"
         >
           <HtmlLayoutEditor
             html={htmlOverride ?? String(preview.content ?? '')}

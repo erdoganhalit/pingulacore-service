@@ -231,9 +231,9 @@ export function AgentsPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-            Standalone Agents
+            Bağımsız Agent'lar
           </h1>
-          <p className="text-muted-foreground">Run individual agents independently for testing</p>
+          <p className="text-muted-foreground">Test için bireysel agent'ları bağımsız çalıştır</p>
         </div>
 
         {/* Error */}
@@ -248,7 +248,7 @@ export function AgentsPage() {
           <div className="px-8 py-5 border-b border-border"
             style={{ background: 'linear-gradient(to right, var(--accent), var(--muted))' }}>
             <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-              Agent Configuration
+              Agent Yapılandırması
             </h2>
           </div>
 
@@ -281,7 +281,7 @@ export function AgentsPage() {
                 style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
               >
                 <Code className="w-4 h-4" />
-                {advancedMode ? 'Basic Moda Dön' : 'Advanced JSON Aç'}
+                {advancedMode ? 'Basit Moda Dön' : 'Gelişmiş JSON Aç'}
               </button>
             </div>
 
@@ -289,7 +289,7 @@ export function AgentsPage() {
             {!advancedMode ? (
               <div className="rounded-xl border border-border p-6 space-y-5"
                 style={{ background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--muted) 30%, transparent))' }}>
-                <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>Basic Form</h3>
+                <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>Basit Form</h3>
 
                 {/* YAML loader — only for main_generate_question */}
                 {activeAgent.id === 'main_generate_question' && (
@@ -353,7 +353,7 @@ export function AgentsPage() {
                         onChange={(e) => setFieldValues((p) => ({ ...p, [field.key]: e.target.value }))}
                         className={inputClass}
                         style={{ borderColor: 'var(--border)' }}
-                        placeholder={field.kind === 'json' ? '{}' : 'Optional...'}
+                        placeholder={field.kind === 'json' ? '{}' : 'İsteğe bağlı...'}
                       />
                     </div>
                   ))}
@@ -364,14 +364,14 @@ export function AgentsPage() {
               <div className="rounded-xl border border-border p-6 space-y-3"
                 style={{ background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--muted) 30%, transparent))' }}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>Advanced Raw JSON Payload</h3>
+                  <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>Gelişmiş Ham JSON Payload</h3>
                   <button
                     type="button"
                     onClick={syncRawFromBasic}
                     className="text-xs px-3 py-1.5 rounded-lg border-2 hover:bg-accent transition-all duration-200"
                     style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
                   >
-                    Raw Sync
+                    Ham Senkronize
                   </button>
                 </div>
                 <textarea
@@ -415,8 +415,8 @@ export function AgentsPage() {
                   <code className="text-xs bg-muted px-2 py-1 rounded-lg">{lastResponse.run_id}</code>
                   {lastRunDetail && <StatusBadge status={lastRunDetail.status} />}
                 </div>
-                <JsonPanel title="Result" data={lastResponse.result} size="large" />
-                {lastRunDetail && <JsonPanel title="Run Detail" data={lastRunDetail} />}
+                <JsonPanel title="Sonuç" data={lastResponse.result} size="large" />
+                {lastRunDetail && <JsonPanel title="Run Detayı" data={lastRunDetail} />}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">Henüz sonuç yok.</p>
@@ -425,10 +425,10 @@ export function AgentsPage() {
         </div>
 
         {/* HTML Output */}
-        {htmlOutput && <HtmlViewer title="Generated HTML" html={htmlOutput} />}
+        {htmlOutput && <HtmlViewer title="Oluşturulan HTML" html={htmlOutput} />}
 
         {/* Log Stream */}
-        <LogStreamPanel lines={lines} connected={connected} done={done} title="Agent Logs" active={active} />
+        <LogStreamPanel lines={lines} connected={connected} done={done} title="Agent Logları" active={active} />
 
         {/* Run History */}
         {runHistory.length > 0 && (

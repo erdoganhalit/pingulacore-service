@@ -170,11 +170,11 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Label</label>
+            <label className="text-xs font-medium text-muted-foreground">Etiket</label>
             <input value={form.label} onChange={(e) => handleLabel(e.target.value)} className={inputClass} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Data Type</label>
+            <label className="text-xs font-medium text-muted-foreground">Veri Tipi</label>
             <select
               value={form.dataType}
               onChange={(e) => {
@@ -191,7 +191,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Property Key</label>
+            <label className="text-xs font-medium text-muted-foreground">Property Anahtarı</label>
             <input
               value={form.propertyKey}
               onChange={(e) => {
@@ -202,7 +202,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Canonical Path</label>
+            <label className="text-xs font-medium text-muted-foreground">Kanonik Yol</label>
             <input
               value={form.canonicalPath}
               onChange={(e) => {
@@ -213,7 +213,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             />
           </div>
           <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-muted-foreground">Description</label>
+            <label className="text-xs font-medium text-muted-foreground">Açıklama</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -222,7 +222,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             />
           </div>
           <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-muted-foreground">Default Value</label>
+            <label className="text-xs font-medium text-muted-foreground">Varsayılan Değer</label>
             <input
               value={form.defaultValue}
               onChange={(e) => setForm((prev) => ({ ...prev, defaultValue: e.target.value }))}
@@ -349,7 +349,7 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
                   {property.data_type}
                 </span>
                 {property.is_required ? (
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">required</span>
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">zorunlu</span>
                 ) : null}
                 {!isOwned ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -515,7 +515,7 @@ export function FieldsManagementPage() {
             <div className="rounded-2xl border border-border bg-background px-5 py-4 text-sm text-muted-foreground shadow-sm">
               <div className="flex items-center gap-2 font-medium text-foreground">
                 <Layers3 className="h-4 w-4" />
-                Effective Properties
+                Etkin Özellikler
               </div>
               <div className="mt-1">
                 Soluk satırlar atalardan miras; bu node için sadece okunabilir.
