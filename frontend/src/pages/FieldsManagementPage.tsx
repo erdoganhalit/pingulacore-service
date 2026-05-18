@@ -152,11 +152,11 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
         default_value: form.dataType === 'object' ? null : form.defaultValue.trim() || null,
         is_required: form.isRequired,
       })
-      setNotice({ tone: 'success', message: `Property eklendi: ${label}` })
+      setNotice({ tone: 'success', message: `Özellik eklendi: ${label}` })
       await onCreated()
       onClose()
     } catch (err) {
-      setError(parseError(err, 'Property oluşturulamadı'))
+      setError(parseError(err, 'Özellik oluşturulamadı'))
     } finally {
       setBusy(false)
     }
@@ -194,7 +194,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Property Anahtarı</label>
+            <label className="text-xs font-medium text-muted-foreground">Özellik Anahtarı</label>
             <input
               value={form.propertyKey}
               onChange={(e) => {
@@ -262,7 +262,7 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
             className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
             style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
           >
-            {busy ? 'Kaydediliyor...' : 'Property Ekle'}
+            {busy ? 'Kaydediliyor...' : 'Özellik Ekle'}
           </button>
         </div>
       </div>
@@ -283,7 +283,7 @@ function PropertyTreeView({ roots, currentNodeId, curriculumNodeNames, busy, onA
   if (roots.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground">
-        Bu node ve atalarında tanımlı property bulunamadı.
+        Bu node ve atalarında tanımlı özellik bulunamadı.
       </div>
     )
   }
@@ -486,7 +486,7 @@ export function FieldsManagementPage() {
       await reload()
       setNotice({ tone: 'success', message: `Silindi: ${item.label}` })
     } catch (err) {
-      setNotice({ tone: 'error', message: parseError(err, 'Property silinemedi') })
+      setNotice({ tone: 'error', message: parseError(err, 'Özellik silinemedi') })
     } finally {
       setBusy(false)
     }
@@ -513,7 +513,7 @@ export function FieldsManagementPage() {
                 <p className="mt-2 text-sm text-muted-foreground">{currentNode.path}</p>
               ) : null}
               <p className="mt-2 text-lg text-muted-foreground">
-                Bu node'da tanımlı ve atalardan miras alınan property'leri ağaç görünümünde yönet.
+                Bu node'da tanımlı ve atalardan miras alınan özellikleri ağaç görünümünde yönet.
               </p>
             </div>
             <div className="rounded-2xl border border-border bg-background px-5 py-4 text-sm text-muted-foreground shadow-sm">
@@ -568,7 +568,7 @@ export function FieldsManagementPage() {
                   <ArrowLeft className="h-6 w-6" />
                   Müfredat Yönetimi'ne Dön
                 </button>
-                <div className="text-sm font-medium text-foreground">Property Ağacı</div>
+                <div className="text-sm font-medium text-foreground">Özellik Ağacı</div>
                 <div className="text-xs text-muted-foreground">{effective.length} property (kendi + miras)</div>
               </div>
               <div className="flex items-center gap-2">

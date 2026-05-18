@@ -210,7 +210,7 @@ export function SubPipelinesPage() {
   const runYamlToQuestion = async () => {
     setError('')
     if (!yamlInstanceId) {
-      setError('YAML instance seçilmedi')
+      setError('YAML kaydı seçilmedi')
       return
     }
     const key = crypto.randomUUID()
@@ -371,7 +371,7 @@ export function SubPipelinesPage() {
                   <div className="space-y-2">
                     <div className={labelClass}>
                       <FileCode className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      YAML Instance
+                      YAML Kaydı
                     </div>
                     <YamlInstanceCascadeSelector
                       curriculumTree={curriculumTree}

@@ -656,14 +656,14 @@ function PropertyFormModal({
       }
       onClose()
     } catch (err) {
-      setError(parseError(err, 'Property kaydedilemedi'))
+      setError(parseError(err, 'Özellik kaydedilemedi'))
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Property Tanımı Oluştur' : 'Property Tanımı Düzenle'}>
+    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Özellik Tanımı Oluştur' : 'Özellik Tanımı Düzenle'}>
       <div className="space-y-5 p-6">
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
@@ -685,11 +685,11 @@ function PropertyFormModal({
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Etiket</label>
-            <input aria-label="Property etiketi" value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} className={inputClass} />
+            <input aria-label="Özellik etiketi" value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} className={inputClass} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Property Anahtarı</label>
-            <input aria-label="Property anahtarı" value={form.propertyKey} onChange={(event) => setForm((prev) => ({ ...prev, propertyKey: event.target.value }))} className={inputClass} />
+            <label className="text-sm font-medium text-foreground">Özellik Anahtarı</label>
+            <input aria-label="Özellik anahtarı" value={form.propertyKey} onChange={(event) => setForm((prev) => ({ ...prev, propertyKey: event.target.value }))} className={inputClass} />
           </div>
 
           <div className="space-y-2">
@@ -699,7 +699,7 @@ function PropertyFormModal({
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Veri Tipi</label>
             <select
-              aria-label="Property veri tipi"
+              aria-label="Özellik veri tipi"
               value={form.dataType}
               onChange={(event) =>
                 setForm((prev) => ({
@@ -716,7 +716,7 @@ function PropertyFormModal({
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Varsayılan Değer</label>
             <input
-              aria-label="Property varsayılan değeri"
+              aria-label="Özellik varsayılan değeri"
               value={form.defaultValue}
               onChange={(event) => setForm((prev) => ({ ...prev, defaultValue: event.target.value }))}
               className={inputClass}
@@ -730,12 +730,12 @@ function PropertyFormModal({
 
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium text-foreground">Açıklama</label>
-            <textarea aria-label="Property açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} />
+            <textarea aria-label="Özellik açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} />
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Üst Property</label>
-            <select aria-label="Üst property" value={form.parentPropertyId} onChange={(event) => setForm((prev) => ({ ...prev, parentPropertyId: event.target.value }))} className={selectClass}>
+            <label className="text-sm font-medium text-foreground">Üst Özellik</label>
+            <select aria-label="Üst özellik" value={form.parentPropertyId} onChange={(event) => setForm((prev) => ({ ...prev, parentPropertyId: event.target.value }))} className={selectClass}>
               <option value="">Üst öğe yok</option>
               {parentOptions.map((item) => (
                 <option key={item.id} value={item.id}>{item.label} · {item.canonical_path}</option>
@@ -973,7 +973,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
     try {
       if (!form.curriculumFolderNodeId) throw new Error('Curriculum folder seçilmedi')
       if (!form.templateCode.trim() || !form.title.trim()) {
-        throw new Error('Template code ve title zorunlu')
+        throw new Error('Şablon kodu ve başlık zorunlu')
       }
 
       if (mode === 'create') {
@@ -1000,7 +1000,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
       }
       onClose()
     } catch (err) {
-      setError(parseError(err, 'Template kaydedilemedi'))
+      setError(parseError(err, 'Şablon kaydedilemedi'))
     } finally {
       setSubmitting(false)
     }
@@ -1044,18 +1044,18 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
 
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium text-foreground">Açıklama</label>
-              <textarea aria-label="Template açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} rows={4} />
+              <textarea aria-label="Şablon açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} rows={4} />
             </div>
 
             {mode === 'create' ? (
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-foreground">Oluşturan</label>
-                <input aria-label="Template oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
+                <input aria-label="Şablon oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
               </div>
             ) : (
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-foreground">Durum</label>
-                <select aria-label="Template durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'active' | 'archived' }))} className={selectClass}>
+                <select aria-label="Şablon durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'active' | 'archived' }))} className={selectClass}>
                   <option value="active">active</option>
                   <option value="archived">archived</option>
                 </select>
@@ -1082,7 +1082,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
         <div className="flex items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">Vazgeç</button>
           <button type="button" onClick={() => void handleSubmit()} disabled={submitting} className="rounded-xl px-4 py-2.5 text-sm font-medium text-white" style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}>
-            {submitting ? 'Kaydediliyor...' : mode === 'create' ? 'Template Oluştur' : 'Template Kaydet'}
+            {submitting ? 'Kaydediliyor...' : mode === 'create' ? 'Şablon Oluştur' : 'Şablonu Kaydet'}
           </button>
         </div>
       </div>
@@ -1439,7 +1439,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
     setError('')
     try {
       if (!form.templateId) throw new Error('Template seçilmedi')
-      if (!form.instanceName.trim()) throw new Error('Instance name zorunlu')
+      if (!form.instanceName.trim()) throw new Error('Kayıt adı zorunlu')
 
       if (mode === 'create') {
         const payload: YamlInstanceCreatePayload = {
@@ -1460,7 +1460,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
       }
       onClose()
     } catch (err) {
-      setError(parseError(err, 'Instance kaydedilemedi'))
+      setError(parseError(err, 'Kayıt kaydedilemedi'))
     } finally {
       setSubmitting(false)
     }
@@ -1495,7 +1495,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Durum</label>
-                <select aria-label="Instance durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'draft' | 'final' | 'archived' }))} className={selectClass}>
+                <select aria-label="Kayıt durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'draft' | 'final' | 'archived' }))} className={selectClass}>
                   {INSTANCE_STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </div>
@@ -1510,7 +1510,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
 
             <div className="rounded-2xl border border-border bg-card p-5">
               <div className="mb-4">
-                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Değerleri</h4>
+                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Şablon Değerleri</h4>
                 <p className="text-sm text-muted-foreground">Schema'ya göre otomatik üretilen form.</p>
               </div>
               {Object.keys(normalizedSchema.properties ?? {}).length === 0 ? (
@@ -1533,7 +1533,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
         <div className="flex items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">Vazgeç</button>
           <button type="button" onClick={() => void handleSubmit()} disabled={submitting} className="rounded-xl px-4 py-2.5 text-sm font-medium text-white" style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}>
-            {submitting ? 'Kaydediliyor...' : mode === 'create' ? 'Instance Oluştur' : 'Instance Kaydet'}
+            {submitting ? 'Kaydediliyor...' : mode === 'create' ? 'Kayıt Oluştur' : 'Kaydı Kaydet'}
           </button>
         </div>
       </div>
@@ -1598,7 +1598,7 @@ export function PropertiesTab({
     await refreshProperties()
     setSelectedNodeId(response.defined_at_curriculum_node_id)
     setSelectedPropertyId(response.id)
-    setNotice({ tone: 'success', message: propertyId ? 'Property definition güncellendi.' : 'Yeni property definition oluşturuldu.' })
+    setNotice({ tone: 'success', message: propertyId ? 'Özellik tanımı güncellendi.' : 'Yeni özellik tanımı oluşturuldu.' })
   }
 
   const handleDelete = async () => {
@@ -1610,7 +1610,7 @@ export function PropertiesTab({
       setNotice({ tone: 'success', message: `Property silindi: ${deleteTarget.label}` })
       setDeleteTarget(null)
     } catch (error) {
-      setNotice({ tone: 'error', message: parseError(error, 'Property silinemedi') })
+      setNotice({ tone: 'error', message: parseError(error, 'Özellik silinemedi') })
     } finally {
       setDeleteBusy(false)
     }
@@ -1628,7 +1628,7 @@ export function PropertiesTab({
 
         <div className="space-y-6">
           <CrudToolbar
-            title="Property Tanımları"
+            title="Özellik Tanımları"
             description="Curriculum node bazlı property tanımlarını görüntüle, oluştur ve yönet."
             searchValue={search}
             searchPlaceholder="Label, property key veya canonical path ara"
@@ -1745,7 +1745,7 @@ export function PropertiesTab({
 
       <DeleteConfirmModal
         open={Boolean(deleteTarget)}
-        title="Property Tanımı Sil"
+        title="Özellik Tanımı Sil"
         message={deleteTarget ? `${deleteTarget.label} kaydını silmek istediğine emin misin?` : ''}
         busy={deleteBusy}
         onClose={() => setDeleteTarget(null)}
@@ -1814,10 +1814,10 @@ export function TemplatesTab({
     try {
       await api.deleteYamlTemplate(deleteTarget.id)
       await refreshTemplates()
-      setNotice({ tone: 'success', message: `Template silindi: ${deleteTarget.title}` })
+      setNotice({ tone: 'success', message: `Şablon silindi: ${deleteTarget.title}` })
       setDeleteTarget(null)
     } catch (error) {
-      setNotice({ tone: 'error', message: parseError(error, 'Template silinemedi') })
+      setNotice({ tone: 'error', message: parseError(error, 'Şablon silinemedi') })
     } finally {
       setDeleteBusy(false)
     }
@@ -1831,7 +1831,7 @@ export function TemplatesTab({
           selectedId={selectedFolderId}
           onSelect={(node) => setSelectedFolderId(node.id)}
           onClearSelection={() => setSelectedFolderId('')}
-          title="Template Folder Seçimi"
+          title="Şablon Klasörü Seçimi"
         />
 
         <div className="space-y-6">
@@ -1839,7 +1839,7 @@ export function TemplatesTab({
             title="YAML Şablonları"
             description="Curriculum folder node altındaki gerçek şablon kayıtlarını yönet."
             searchValue={search}
-            searchPlaceholder="Template code, title veya description ara"
+            searchPlaceholder="Şablon kodu, başlık veya açıklama ara"
             onSearchChange={setSearch}
             onAdd={() => setModalMode('create')}
             onRefresh={() => void refreshTemplates()}
@@ -1990,7 +1990,7 @@ export function InstancesTab({
       setNotice({ tone: 'success', message: `Instance silindi: ${deleteTarget.instance_name}` })
       setDeleteTarget(null)
     } catch (error) {
-      setNotice({ tone: 'error', message: parseError(error, 'Instance silinemedi') })
+      setNotice({ tone: 'error', message: parseError(error, 'Kayıt silinemedi') })
     } finally {
       setDeleteBusy(false)
     }
@@ -2015,7 +2015,7 @@ export function InstancesTab({
         title="YAML Kayıtları"
         description="Şablon kayıtlarından türetilmiş doldurulmuş YAML kayıtlarını yönet."
         searchValue={search}
-        searchPlaceholder="Instance name ara"
+        searchPlaceholder="Kayıt adı ara"
         onSearchChange={setSearch}
         onAdd={() => setModalMode('create')}
         onRefresh={() => void refreshInstances()}
@@ -2039,7 +2039,7 @@ export function InstancesTab({
         <div className={sectionCardClass}>
           <div className="border-b border-border px-5 py-4">
             <div className="text-sm font-medium text-foreground">Liste</div>
-            <div className="text-xs text-muted-foreground">Template ve status filtreleri uygulanır.</div>
+            <div className="text-xs text-muted-foreground">Şablon ve durum filtreleri uygulanır.</div>
           </div>
           <div className="max-h-[760px] overflow-auto p-4 space-y-3">
             {filteredInstances.length === 0 ? (
@@ -2087,7 +2087,7 @@ export function InstancesTab({
                 <div className="grid gap-3 md:grid-cols-2">
                   <DetailChip label="Status" value={selectedInstance.status} />
                   <DetailChip label="Created By" value={selectedInstance.created_by || '-'} />
-                  <DetailChip label="Instance ID" value={selectedInstance.id} />
+                  <DetailChip label="Kayıt ID" value={selectedInstance.id} />
                   <DetailChip label="Template ID" value={selectedInstance.template_id} />
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4">
@@ -2239,6 +2239,17 @@ export function ContentManagementPage() {
 
   const folderNodes = useMemo(() => flattenCurriculumNodes(curriculumTree).filter((n) => n.scope === 'folder'), [curriculumTree])
 
+  const handleDeleteTemplate = async (template: YamlTemplateItem) => {
+    if (!confirm(`"${template.title}" şablonunu silmek istediğine emin misin?`)) return
+    try {
+      await api.deleteYamlTemplate(template.id)
+      await loadTemplates()
+      setNotice({ tone: 'success', message: `Şablon silindi: ${template.title}` })
+    } catch (error) {
+      setNotice({ tone: 'error', message: parseError(error, 'Şablon silinemedi') })
+    }
+  }
+
   const handleDeleteNode = async (node: CurriculumNodeItem) => {
     const childCount = node.children.length
     const warning = childCount > 0 ? ` Bu node'un ${childCount} alt node'u var — hepsi de silinecek.` : ''
@@ -2270,7 +2281,7 @@ export function ContentManagementPage() {
                 Müfredat Yönetimi
               </h1>
               <p className="mt-2 text-lg text-muted-foreground">
-                Property definitions, YAML templates ve YAML instances kayıtlarını tek bir ekrandan görüntüle, ekle, düzenle ve sil.
+                Özellik tanımları, YAML şablonları ve YAML kayıtlarını tek bir ekrandan görüntüle, ekle, düzenle ve sil.
               </p>
             </div>
             <div className="rounded-2xl border border-border bg-background px-5 py-4 text-sm text-muted-foreground shadow-sm">
@@ -2300,6 +2311,7 @@ export function ContentManagementPage() {
             onAddTemplate={handleAddTemplate}
             onManageProperties={(node) => navigate(`/content/fields/${node.id}`)}
             onDeleteNode={(node) => void handleDeleteNode(node)}
+            onDeleteTemplate={(template) => void handleDeleteTemplate(template)}
           />
         )}
 
