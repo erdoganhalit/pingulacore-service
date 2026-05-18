@@ -21,8 +21,8 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "property_default_overrides",
-        sa.Column("id", sa.Text(), nullable=False),
-        sa.Column("property_definition_id", sa.Text(), nullable=False),
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("property_definition_id", sa.String(), nullable=False),
         sa.Column("curriculum_node_id", sa.Text(), nullable=False),
         sa.Column("override_value", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
