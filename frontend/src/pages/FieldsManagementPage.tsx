@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, ChevronDown, ChevronRight, Layers3, Lock, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, Copy, Layers3, Lock, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 
 import { Modal } from '../components/Modal'
 import { ApiError, api } from '../lib/api'
@@ -270,16 +270,147 @@ function AddPropertyModal({ open, onClose, parent, currentNode, onCreated, setNo
   )
 }
 
+interface EditPropertyModalProps {
+  open: boolean
+  onClose: () => void
+  property: PropertyDefinitionItem | null
+  onSaved: () => Promise<void> | void
+  setNotice: (msg: { tone: 'success' | 'error'; message: string }) => void
+}
+
+function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: EditPropertyModalProps) {
+  const [form, setForm] = useState<AddFormState>(emptyForm)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open || !property) return
+    setForm({
+      label: property.label,
+      propertyKey: property.property_key,
+      canonicalPath: property.canonical_path,
+      dataType: property.data_type,
+      defaultValue: property.default_value ?? '',
+      description: property.description ?? '',
+      isRequired: property.is_required,
+    })
+    setBusy(false)
+    setError('')
+  }, [open, property])
+
+  const handleSubmit = async () => {
+    if (!property) return
+    setBusy(true)
+    setError('')
+    try {
+      const label = form.label.trim()
+      const key = form.propertyKey.trim()
+      const path = form.canonicalPath.trim()
+      if (!label || !key || !path) throw new Error('Etiket, özellik anahtarı ve kanonik yol zorunlu')
+      await api.updateProperty(property.id, {
+        label,
+        description: form.description.trim() || null,
+        property_key: key,
+        canonical_path: path,
+        data_type: form.dataType,
+        default_value: form.dataType === 'object' ? null : form.defaultValue.trim() || null,
+        is_required: form.isRequired,
+      })
+      setNotice({ tone: 'success', message: `Güncellendi: ${label}` })
+      await onSaved()
+      onClose()
+    } catch (err) {
+      setError(parseError(err, 'Özellik güncellenemedi'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Düzenle · ${property?.label ?? ''}`} size="wide">
+      <div className="space-y-5 p-6">
+        {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Etiket</label>
+            <input value={form.label} onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))} className={inputClass} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Veri Tipi</label>
+            <select
+              value={form.dataType}
+              onChange={(e) => {
+                const next = e.target.value as PropertyDataType
+                setForm((prev) => ({ ...prev, dataType: next, defaultValue: next === 'object' ? '' : prev.defaultValue }))
+              }}
+              className={selectClass}
+            >
+              {DATA_TYPE_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Özellik Anahtarı</label>
+            <input value={form.propertyKey} onChange={(e) => setForm((prev) => ({ ...prev, propertyKey: e.target.value }))} className={inputClass} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Kanonik Yol</label>
+            <input value={form.canonicalPath} onChange={(e) => setForm((prev) => ({ ...prev, canonicalPath: e.target.value }))} className={inputClass} />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">Açıklama</label>
+            <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} className={textareaClass} rows={3} />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">Varsayılan Değer</label>
+            <input
+              value={form.defaultValue}
+              onChange={(e) => setForm((prev) => ({ ...prev, defaultValue: e.target.value }))}
+              className={inputClass}
+              disabled={form.dataType === 'object'}
+              placeholder={form.dataType === 'array' ? 'deger1;deger2;deger3' : 'Varsayılan değer'}
+            />
+            {form.dataType === 'array' ? (
+              <div className="text-xs text-muted-foreground">Array tipinde öğeleri `;` ile ayır.</div>
+            ) : null}
+          </div>
+          <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
+            <input type="checkbox" checked={form.isRequired} onChange={(e) => setForm((prev) => ({ ...prev, isRequired: e.target.checked }))} />
+            Zorunlu alan
+          </label>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60">
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={busy}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+            style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
+          >
+            {busy ? 'Kaydediliyor...' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 interface PropertyTreeViewProps {
   roots: PropertyTreeNode[]
   currentNodeId: string
   curriculumNodeNames: Map<string, string>
   busy: boolean
   onAddChild: (parent: PropertyDefinitionItem) => void
+  onEdit: (item: PropertyDefinitionItem) => void
   onDelete: (item: PropertyDefinitionItem) => void
+  onDuplicate: (node: PropertyTreeNode) => void
 }
 
-function PropertyTreeView({ roots, currentNodeId, curriculumNodeNames, busy, onAddChild, onDelete }: PropertyTreeViewProps) {
+function PropertyTreeView({ roots, currentNodeId, curriculumNodeNames, busy, onAddChild, onEdit, onDelete, onDuplicate }: PropertyTreeViewProps) {
   if (roots.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground">
@@ -297,7 +428,9 @@ function PropertyTreeView({ roots, currentNodeId, curriculumNodeNames, busy, onA
           curriculumNodeNames={curriculumNodeNames}
           busy={busy}
           onAddChild={onAddChild}
+          onEdit={onEdit}
           onDelete={onDelete}
+          onDuplicate={onDuplicate}
         />
       ))}
     </div>
@@ -310,14 +443,16 @@ interface PropertyTreeRowProps {
   curriculumNodeNames: Map<string, string>
   busy: boolean
   onAddChild: (parent: PropertyDefinitionItem) => void
+  onEdit: (item: PropertyDefinitionItem) => void
   onDelete: (item: PropertyDefinitionItem) => void
+  onDuplicate: (node: PropertyTreeNode) => void
 }
 
-function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAddChild, onDelete }: PropertyTreeRowProps) {
+function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAddChild, onEdit, onDelete, onDuplicate }: PropertyTreeRowProps) {
   const [open, setOpen] = useState(true)
   const property = node.property
   const isOwned = property.defined_at_curriculum_node_id === currentNodeId
-  const isObject = property.data_type === 'object'
+  const canHaveChildren = property.data_type === 'object' || property.data_type === 'array'
   const hasChildren = node.children.length > 0
   const definedAtName = curriculumNodeNames.get(property.defined_at_curriculum_node_id) ?? '—'
 
@@ -369,7 +504,7 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              {isObject ? (
+              {canHaveChildren ? (
                 <button
                   type="button"
                   onClick={() => onAddChild(property)}
@@ -382,17 +517,39 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
                 </button>
               ) : null}
               {isOwned ? (
-                <button
-                  type="button"
-                  onClick={() => onDelete(property)}
-                  disabled={busy}
-                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-red-200 px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                  aria-label="Sil"
-                  title="Sil"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Sil
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(property)}
+                    disabled={busy}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground hover:bg-accent disabled:opacity-60"
+                    aria-label="Düzenle"
+                    title="Düzenle"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDuplicate(node)}
+                    disabled={busy}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground hover:bg-accent disabled:opacity-60"
+                    aria-label="Kopyala"
+                    title="Kopyala"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(property)}
+                    disabled={busy}
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-red-200 px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    aria-label="Sil"
+                    title="Sil"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Sil
+                  </button>
+                </>
               ) : null}
             </div>
           </div>
@@ -408,7 +565,9 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
               curriculumNodeNames={curriculumNodeNames}
               busy={busy}
               onAddChild={onAddChild}
+              onEdit={onEdit}
               onDelete={onDelete}
+              onDuplicate={onDuplicate}
             />
           ))}
         </div>
@@ -427,6 +586,7 @@ export function FieldsManagementPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const [addModal, setAddModal] = useState<{ open: boolean; parent: PropertyDefinitionItem | null }>({ open: false, parent: null })
+  const [editModal, setEditModal] = useState<{ open: boolean; property: PropertyDefinitionItem | null }>({ open: false, property: null })
   const [sortOrder, setSortOrder] = useState<'created' | 'alpha'>('created')
 
   const reload = async () => {
@@ -470,12 +630,48 @@ export function FieldsManagementPage() {
 
   const propertyRoots = useMemo(() => buildPropertyTree(effective, sortOrder), [effective, sortOrder])
 
+  const handleEdit = (item: PropertyDefinitionItem) => {
+    setEditModal({ open: true, property: item })
+  }
+
   const handleAddChild = (parent: PropertyDefinitionItem) => {
     setAddModal({ open: true, parent })
   }
 
   const handleAddRoot = () => {
     setAddModal({ open: true, parent: null })
+  }
+
+  const handleDuplicate = async (node: PropertyTreeNode) => {
+    if (!currentNode) return
+    setBusy(true)
+    try {
+      const copySubtree = async (src: PropertyTreeNode, parentId: string | null): Promise<void> => {
+        const p = src.property
+        const created = await api.createProperty({
+          defined_at_curriculum_node_id: currentNode.id,
+          parent_property_id: parentId,
+          label: `${p.label} (kopya)`,
+          description: p.description ?? null,
+          property_key: `${p.property_key}_kopya`,
+          canonical_path: `${p.canonical_path}_kopya`,
+          data_type: p.data_type,
+          default_value: p.default_value ?? null,
+          is_required: p.is_required,
+          constraints: p.constraints,
+        })
+        for (const child of src.children) {
+          await copySubtree(child, created.id)
+        }
+      }
+      await copySubtree(node, node.property.parent_property_id ?? null)
+      await reload()
+      setNotice({ tone: 'success', message: `Kopyalandı: ${node.property.label}` })
+    } catch (err) {
+      setNotice({ tone: 'error', message: parseError(err, 'Kopyalama başarısız') })
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleDelete = async (item: PropertyDefinitionItem) => {
@@ -607,7 +803,9 @@ export function FieldsManagementPage() {
                 curriculumNodeNames={curriculumNodeNames}
                 busy={busy}
                 onAddChild={handleAddChild}
+                onEdit={handleEdit}
                 onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
               />
             </div>
           </div>
@@ -623,6 +821,13 @@ export function FieldsManagementPage() {
             setNotice={setNotice}
           />
         ) : null}
+        <EditPropertyModal
+          open={editModal.open}
+          onClose={() => setEditModal({ open: false, property: null })}
+          property={editModal.property}
+          onSaved={reload}
+          setNotice={setNotice}
+        />
       </motion.div>
     </div>
   )

@@ -367,7 +367,7 @@ export function SubPipelinesPage() {
             {/* ── YAML → Question ─────────────────────────────── */}
             {activeTab === 'yaml' && (
               <>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <div className={labelClass}>
                       <FileCode className="w-4 h-4" style={{ color: 'var(--primary)' }} />
@@ -383,7 +383,7 @@ export function SubPipelinesPage() {
                       inputClassName={selectClass}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                       Question Yeniden Deneme
@@ -431,9 +431,14 @@ export function SubPipelinesPage() {
             {/* ── Question → Layout ────────────────────────────── */}
             {activeTab === 'layout' && (
               <>
-                <div className="grid grid-cols-3 gap-5">
-                  <div className="space-y-2">
-                    <label className={labelClass}>Question Artifact</label>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Question Artifact</span>
+                      {selectedQuestionArtifactId ? (
+                        <span className="text-xs font-semibold text-foreground truncate max-w-xs">{selectedQuestionArtifactId}</span>
+                      ) : null}
+                    </div>
                     <select
                       value={selectedQuestionArtifactId}
                       onChange={(e) => setSelectedQuestionArtifactId(e.target.value)}
@@ -443,14 +448,12 @@ export function SubPipelinesPage() {
                       {questionArtifacts.length === 0
                         ? <option value="">Question artifact yok</option>
                         : questionArtifacts.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.id}
-                          </option>
+                          <option key={item.id} value={item.id}>{item.id}</option>
                         ))
                       }
                     </select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                       Layout Yeniden Deneme
@@ -499,9 +502,14 @@ export function SubPipelinesPage() {
             {/* ── Layout → HTML ────────────────────────────────── */}
             {activeTab === 'html' && (
               <>
-                <div className="grid grid-cols-3 gap-5">
-                  <div className="space-y-2">
-                    <label className={labelClass}>Question Artifact</label>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Question Artifact</span>
+                      {selectedHtmlQuestionArtifactId ? (
+                        <span className="text-xs font-semibold text-foreground truncate max-w-xs">{selectedHtmlQuestionArtifactId}</span>
+                      ) : null}
+                    </div>
                     <select
                       value={selectedHtmlQuestionArtifactId}
                       onChange={(e) => setSelectedHtmlQuestionArtifactId(e.target.value)}
@@ -511,15 +519,18 @@ export function SubPipelinesPage() {
                       {questionArtifacts.length === 0
                         ? <option value="">Question artifact yok</option>
                         : questionArtifacts.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.id}
-                          </option>
+                          <option key={item.id} value={item.id}>{item.id}</option>
                         ))
                       }
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className={labelClass}>Layout Artifact</label>
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Layout Artifact</span>
+                      {selectedLayoutArtifactId ? (
+                        <span className="text-xs font-semibold text-foreground truncate max-w-xs">{selectedLayoutArtifactId}</span>
+                      ) : null}
+                    </div>
                     <select
                       value={selectedLayoutArtifactId}
                       onChange={(e) => setSelectedLayoutArtifactId(e.target.value)}
@@ -529,14 +540,12 @@ export function SubPipelinesPage() {
                       {layoutArtifacts.length === 0
                         ? <option value="">Layout artifact yok</option>
                         : layoutArtifacts.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.id}
-                          </option>
+                          <option key={item.id} value={item.id}>{item.id}</option>
                         ))
                       }
                     </select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                       HTML Yeniden Deneme
