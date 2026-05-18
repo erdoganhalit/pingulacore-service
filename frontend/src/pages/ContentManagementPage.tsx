@@ -102,9 +102,9 @@ interface InstanceFormState {
 }
 
 export const CONTENT_TABS: { id: ContentTab; label: string; Icon: typeof Layers3 }[] = [
-  { id: 'properties', label: 'Property Tanımları', Icon: Layers3 },
-  { id: 'templates', label: 'YAML Template\'leri', Icon: FolderTree },
-  { id: 'instances', label: 'YAML Instance\'ları', Icon: Box },
+  { id: 'properties', label: 'Özellik Tanımları', Icon: Layers3 },
+  { id: 'templates', label: 'YAML Şablonları', Icon: FolderTree },
+  { id: 'instances', label: 'YAML Kayıtları', Icon: Box },
 ]
 
 const DATA_TYPE_OPTIONS: PropertyDataType[] = ['text', 'bool', 'number', 'json', 'array', 'enum', 'object']
@@ -1007,7 +1007,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'YAML Template Oluştur' : 'YAML Template Düzenle'} size="wide">
+    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'YAML Şablonu Oluştur' : 'YAML Şablonunu Düzenle'} size="wide">
       <div className="space-y-6 p-6">
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         <div className="space-y-5">
@@ -1029,8 +1029,8 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Template Kodu</label>
-              <input aria-label="Template kodu" value={form.templateCode} onChange={(event) => setForm((prev) => ({ ...prev, templateCode: event.target.value }))} className={inputClass} />
+              <label className="text-sm font-medium text-foreground">Şablon Kodu</label>
+              <input aria-label="Şablon kodu" value={form.templateCode} onChange={(event) => setForm((prev) => ({ ...prev, templateCode: event.target.value }))} className={inputClass} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Schema Sürümü</label>
@@ -1039,7 +1039,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
 
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium text-foreground">Başlık</label>
-              <input aria-label="Template başlığı" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} />
+              <input aria-label="Şablon başlığı" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} />
             </div>
 
             <div className="space-y-2 md:col-span-2">
@@ -1467,7 +1467,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'YAML Instance Oluştur' : 'YAML Instance Düzenle'} size="full">
+    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'YAML Kaydı Oluştur' : 'YAML Kaydını Düzenle'} size="full">
       <div className="space-y-6 p-6">
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
@@ -1475,13 +1475,13 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-foreground">Template</label>
+                <label className="text-sm font-medium text-foreground">Şablon</label>
                 <select
                   value={form.templateId}
                   onChange={(event) => changeTemplate(event.target.value)}
                   className={selectClass}
                   disabled={mode === 'edit'}
-                  aria-label="Instance template"
+                  aria-label="Kayıt şablonu"
                 >
                   {templates.map((template) => (
                     <option key={template.id} value={template.id}>{template.title} · {template.template_code}</option>
@@ -1490,8 +1490,8 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Instance İsmi</label>
-                <input aria-label="Instance ismi" value={form.instanceName} onChange={(event) => setForm((prev) => ({ ...prev, instanceName: event.target.value }))} className={inputClass} />
+                <label className="text-sm font-medium text-foreground">Kayıt İsmi</label>
+                <input aria-label="Kayıt ismi" value={form.instanceName} onChange={(event) => setForm((prev) => ({ ...prev, instanceName: event.target.value }))} className={inputClass} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Durum</label>
@@ -1503,7 +1503,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
               {mode === 'create' && (
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-foreground">Oluşturan</label>
-                  <input aria-label="Instance oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
+                  <input aria-label="Kaydı oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
                 </div>
               )}
             </div>
@@ -1811,8 +1811,8 @@ export function TemplatesTab({
 
         <div className="space-y-6">
           <CrudToolbar
-            title="YAML Templates"
-            description="Curriculum folder node altındaki gerçek template kayıtlarını yönet."
+            title="YAML Şablonları"
+            description="Curriculum folder node altındaki gerçek şablon kayıtlarını yönet."
             searchValue={search}
             searchPlaceholder="Template code, title veya description ara"
             onSearchChange={setSearch}
@@ -1897,7 +1897,7 @@ export function TemplatesTab({
 
       <DeleteConfirmModal
         open={Boolean(deleteTarget)}
-        title="YAML Template Sil"
+        title="YAML Şablonunu Sil"
         message={deleteTarget ? `${deleteTarget.title} kaydını silmek istediğine emin misin?` : ''}
         busy={deleteBusy}
         onClose={() => setDeleteTarget(null)}
@@ -1987,8 +1987,8 @@ export function InstancesTab({
   return (
     <div className="space-y-6">
       <CrudToolbar
-        title="YAML Instances"
-        description="Template kayıtlarından türetilmiş doldurulmuş YAML instance’larını yönet."
+        title="YAML Kayıtları"
+        description="Şablon kayıtlarından türetilmiş doldurulmuş YAML kayıtlarını yönet."
         searchValue={search}
         searchPlaceholder="Instance name ara"
         onSearchChange={setSearch}
@@ -2090,7 +2090,7 @@ export function InstancesTab({
 
       <DeleteConfirmModal
         open={Boolean(deleteTarget)}
-        title="YAML Instance Sil"
+        title="YAML Kaydını Sil"
         message={deleteTarget ? `${deleteTarget.instance_name} kaydını silmek istediğine emin misin?` : ''}
         busy={deleteBusy}
         onClose={() => setDeleteTarget(null)}

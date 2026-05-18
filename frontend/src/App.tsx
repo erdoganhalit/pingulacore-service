@@ -47,7 +47,7 @@ const navigation: NavigationItem[] = [
   { kind: 'link', to: '/catalog-assets', label: 'Katalog Görselleri', Icon: ImageIcon, end: false },
   { kind: 'link', to: '/content/yaml-create', label: 'YAML Oluştur', Icon: FilePlus2, end: false },
   { kind: 'divider', key: 'group-divider-2' },
-  { kind: 'link', to: '/legacy', label: 'Legacy Pipeline', Icon: Archive, end: false },
+  { kind: 'link', to: '/legacy', label: 'Eski Pipeline', Icon: Archive, end: false },
 ]
 
 export default function App() {
