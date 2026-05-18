@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, MapPinned, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, MapPinned, Plus, Trash2 } from 'lucide-react'
 
 import type { CurriculumNodeItem, CurriculumNodeScope, YamlTemplateItem } from '../types'
 
@@ -17,6 +17,7 @@ interface CurriculumTreePickerProps {
   onSelectTemplate?: (template: YamlTemplateItem) => void
   onAddTemplate?: (node: CurriculumNodeItem) => void
   onManageProperties?: (node: CurriculumNodeItem) => void
+  onDeleteNode?: (node: CurriculumNodeItem) => void
 }
 
 // depth 0=Root, 1=Grade, 2=Subject, 3=Unit, 4+=Folder
@@ -90,6 +91,7 @@ export function CurriculumTreePicker({
   onSelectTemplate,
   onAddTemplate,
   onManageProperties,
+  onDeleteNode,
 }: CurriculumTreePickerProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(collectDefaultExpanded(nodes)))
 
@@ -127,6 +129,7 @@ export function CurriculumTreePicker({
       !!onAddTemplate &&
       ((node.depth === 3 && node.scope === 'constant') || (node.depth === 4 && node.scope === 'folder'))
     const canManageProperties = !!onManageProperties
+    const canDelete = !!onDeleteNode && (node.scope === 'constant' || node.scope === 'folder')
 
     return (
       <div key={node.id} className="space-y-1">
@@ -194,6 +197,20 @@ export function CurriculumTreePicker({
               title="Alanları Yönet"
             >
               Alanları Yönet
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeleteNode?.(node)
+              }}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50"
+              aria-label="Node sil"
+              title="Node sil"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
