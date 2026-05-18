@@ -535,7 +535,7 @@ export function YamlCreatePage() {
   const handleOpenTemplate = async () => {
     const selected = templateOptions.find((template) => template.id === selectedTemplateId)
     if (!selected) {
-      setNotice({ tone: 'error', message: 'Önce bir YAML Template seçmelisin.' })
+      setNotice({ tone: 'error', message: 'Önce bir YAML Şablonu seçmelisin.' })
       return
     }
     setOpenedTemplateId(selected.id)
@@ -714,7 +714,7 @@ export function YamlCreatePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">YAML Template</label>
+                  <label className="text-sm font-medium text-foreground">YAML Şablonu</label>
                   <select
                     value={selectedTemplateId}
                     onChange={(event) => setSelectedTemplateId(event.target.value)}
