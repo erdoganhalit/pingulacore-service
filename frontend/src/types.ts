@@ -106,6 +106,13 @@ export interface PropertyDefinitionItem {
   is_required: boolean
   is_active: boolean
   created_at?: string
+  effective_default_value?: string | null
+  node_override_value?: string | null
+  has_node_override?: boolean
+}
+
+export interface PropertyDefaultOverrideUpsertPayload {
+  override_value: string | null
 }
 
 export interface PropertyDefinitionCreatePayload {

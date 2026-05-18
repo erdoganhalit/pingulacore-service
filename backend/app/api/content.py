@@ -19,6 +19,8 @@ from app.schemas.content import (
     HtmlReRenderRequest,
     HtmlReRenderResponse,
     PropertyCreateRequest,
+    PropertyDefaultOverrideResponse,
+    PropertyDefaultOverrideUpsertRequest,
     PropertyResponse,
     PropertyUpdateRequest,
     CurriculumNodeCreateRequest,
@@ -66,6 +68,7 @@ def _curriculum_response(row: Any, children: list[CurriculumNodeResponse] | None
 
 
 def _property_response(row: Any) -> PropertyResponse:
+    d = row.__dict__
     return PropertyResponse(
         id=row.id,
         defined_at_curriculum_node_id=row.defined_at_curriculum_node_id,
@@ -80,6 +83,9 @@ def _property_response(row: Any) -> PropertyResponse:
         is_required=row.is_required,
         is_active=row.is_active,
         created_at=row.created_at.isoformat(),
+        effective_default_value=d.get("_effective_default_value", row.default_value),
+        node_override_value=d.get("_node_override_value"),
+        has_node_override=d.get("_has_node_override", False),
     )
 
 
@@ -251,6 +257,50 @@ def delete_property(property_id: str, db: Session = Depends(get_db)) -> Response
         raise HTTPException(status_code=409, detail=str(exc))
     if not deleted:
         raise HTTPException(status_code=404, detail="Property bulunamadı")
+    return Response(status_code=204)
+
+
+@router.get("/curriculum/nodes/{node_id}/property-overrides", response_model=list[PropertyDefaultOverrideResponse])
+def list_property_overrides(node_id: str, db: Session = Depends(get_db)) -> list[PropertyDefaultOverrideResponse]:
+    rows = repository.list_property_default_overrides_for_node(db, node_id)
+    return [PropertyDefaultOverrideResponse(
+        property_definition_id=r.property_definition_id,
+        curriculum_node_id=r.curriculum_node_id,
+        override_value=r.override_value,
+    ) for r in rows]
+
+
+@router.put("/curriculum/nodes/{node_id}/property-overrides/{property_id}", response_model=PropertyDefaultOverrideResponse)
+def upsert_property_override(
+    node_id: str,
+    property_id: str,
+    req: PropertyDefaultOverrideUpsertRequest,
+    db: Session = Depends(get_db),
+) -> PropertyDefaultOverrideResponse:
+    if db.get(repository.models.PropertyDefinition, property_id) is None:
+        raise HTTPException(status_code=404, detail="Property bulunamadı")
+    row = repository.upsert_property_default_override(
+        db,
+        property_definition_id=property_id,
+        curriculum_node_id=node_id,
+        override_value=req.override_value,
+    )
+    return PropertyDefaultOverrideResponse(
+        property_definition_id=row.property_definition_id,
+        curriculum_node_id=row.curriculum_node_id,
+        override_value=row.override_value,
+    )
+
+
+@router.delete("/curriculum/nodes/{node_id}/property-overrides/{property_id}", status_code=204, response_class=Response)
+def delete_property_override(node_id: str, property_id: str, db: Session = Depends(get_db)) -> Response:
+    deleted = repository.delete_property_default_override(
+        db,
+        property_definition_id=property_id,
+        curriculum_node_id=node_id,
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Override bulunamadı")
     return Response(status_code=204)
 
 

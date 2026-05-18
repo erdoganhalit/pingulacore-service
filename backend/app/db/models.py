@@ -410,6 +410,27 @@ class YamlInstancePropertyValue(Base):
     property_definition: Mapped[PropertyDefinition] = relationship(back_populates="instance_values")
 
 
+class PropertyDefaultOverride(Base):
+    __tablename__ = "property_default_overrides"
+    __table_args__ = (
+        UniqueConstraint("property_definition_id", "curriculum_node_id", name="uq_property_default_overrides_pair"),
+        Index("ix_property_default_overrides_node_id", "curriculum_node_id"),
+        Index("ix_property_default_overrides_property_id", "property_definition_id"),
+    )
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    property_definition_id: Mapped[str] = mapped_column(
+        ForeignKey("property_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    curriculum_node_id: Mapped[str] = mapped_column(Text, nullable=False)
+    override_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    property_definition: Mapped[PropertyDefinition] = relationship()
+
+
 class VariantRotationState(Base):
     __tablename__ = "variant_rotation_states"
 

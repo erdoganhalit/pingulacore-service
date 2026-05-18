@@ -142,7 +142,7 @@ function buildDefaultsFromSchemaAndProperties(
 ): unknown {
   const canonicalPath = pathSegments.join('.')
   const matchingProperty = canonicalPath ? propertyByPath.get(canonicalPath) : undefined
-  const rawDefault = matchingProperty?.default_value?.trim()
+  const rawDefault = (matchingProperty?.effective_default_value ?? matchingProperty?.default_value)?.trim()
 
   if (node.type === 'object') {
     const output: Record<string, unknown> = {}

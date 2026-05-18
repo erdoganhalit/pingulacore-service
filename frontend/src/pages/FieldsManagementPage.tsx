@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, ChevronDown, ChevronRight, Copy, Layers3, Lock, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, Copy, Layers3, Lock, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 
 import { Modal } from '../components/Modal'
 import { ApiError, api } from '../lib/api'
@@ -274,14 +274,20 @@ interface EditPropertyModalProps {
   open: boolean
   onClose: () => void
   property: PropertyDefinitionItem | null
+  currentNodeId: string
   onSaved: () => Promise<void> | void
   setNotice: (msg: { tone: 'success' | 'error'; message: string }) => void
 }
 
-function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: EditPropertyModalProps) {
+function EditPropertyModal({ open, onClose, property, currentNodeId, onSaved, setNotice }: EditPropertyModalProps) {
   const [form, setForm] = useState<AddFormState>(emptyForm)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [overrideVal, setOverrideVal] = useState('')
+  const [overrideBusy, setOverrideBusy] = useState(false)
+
+  const isOwned = property?.defined_at_curriculum_node_id === currentNodeId
+  const hasOverride = property?.has_node_override === true
 
   useEffect(() => {
     if (!open || !property) return
@@ -294,7 +300,9 @@ function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: Edit
       description: property.description ?? '',
       isRequired: property.is_required,
     })
+    setOverrideVal(property.node_override_value ?? '')
     setBusy(false)
+    setOverrideBusy(false)
     setError('')
   }, [open, property])
 
@@ -326,14 +334,49 @@ function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: Edit
     }
   }
 
+  const handleOverrideSave = async () => {
+    if (!property) return
+    setOverrideBusy(true)
+    try {
+      await api.upsertPropertyOverride(currentNodeId, property.id, overrideVal.trim() || null)
+      setNotice({ tone: 'success', message: `Geçersiz kılma kaydedildi: ${property.label}` })
+      await onSaved()
+      onClose()
+    } catch (err) {
+      setNotice({ tone: 'error', message: parseError(err, 'Geçersiz kılma kaydedilemedi') })
+    } finally {
+      setOverrideBusy(false)
+    }
+  }
+
+  const handleOverrideClear = async () => {
+    if (!property) return
+    setOverrideBusy(true)
+    try {
+      await api.deletePropertyOverride(currentNodeId, property.id)
+      setNotice({ tone: 'success', message: `Geçersiz kılma sıfırlandı: ${property.label}` })
+      await onSaved()
+      onClose()
+    } catch (err) {
+      setNotice({ tone: 'error', message: parseError(err, 'Geçersiz kılma silinemedi') })
+    } finally {
+      setOverrideBusy(false)
+    }
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title={`Düzenle · ${property?.label ?? ''}`} size="wide">
+    <Modal open={open} onClose={onClose} title={`${isOwned ? 'Düzenle' : 'Görüntüle'} · ${property?.label ?? ''}`} size="wide">
       <div className="space-y-5 p-6">
         {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+        {!isOwned ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
+            Bu özellik bu node'da tanımlı değil · yalnızca varsayılan değer geçersiz kılınabilir
+          </div>
+        ) : null}
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Etiket</label>
-            <input value={form.label} onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))} className={inputClass} />
+            <input value={form.label} onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))} className={inputClass} disabled={!isOwned} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Veri Tipi</label>
@@ -344,6 +387,7 @@ function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: Edit
                 setForm((prev) => ({ ...prev, dataType: next, defaultValue: next === 'object' ? '' : prev.defaultValue }))
               }}
               className={selectClass}
+              disabled={!isOwned}
             >
               {DATA_TYPE_OPTIONS.map((item) => (
                 <option key={item} value={item}>{item}</option>
@@ -352,15 +396,15 @@ function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: Edit
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Özellik Anahtarı</label>
-            <input value={form.propertyKey} onChange={(e) => setForm((prev) => ({ ...prev, propertyKey: e.target.value }))} className={inputClass} />
+            <input value={form.propertyKey} onChange={(e) => setForm((prev) => ({ ...prev, propertyKey: e.target.value }))} className={inputClass} disabled={!isOwned} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Kanonik Yol</label>
-            <input value={form.canonicalPath} onChange={(e) => setForm((prev) => ({ ...prev, canonicalPath: e.target.value }))} className={inputClass} />
+            <input value={form.canonicalPath} onChange={(e) => setForm((prev) => ({ ...prev, canonicalPath: e.target.value }))} className={inputClass} disabled={!isOwned} />
           </div>
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-muted-foreground">Açıklama</label>
-            <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} className={textareaClass} rows={3} />
+            <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} className={textareaClass} rows={3} disabled={!isOwned} />
           </div>
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-muted-foreground">Varsayılan Değer</label>
@@ -368,31 +412,81 @@ function EditPropertyModal({ open, onClose, property, onSaved, setNotice }: Edit
               value={form.defaultValue}
               onChange={(e) => setForm((prev) => ({ ...prev, defaultValue: e.target.value }))}
               className={inputClass}
-              disabled={form.dataType === 'object'}
+              disabled={!isOwned || form.dataType === 'object'}
               placeholder={form.dataType === 'array' ? 'deger1;deger2;deger3' : 'Varsayılan değer'}
             />
             {form.dataType === 'array' ? (
               <div className="text-xs text-muted-foreground">Array tipinde öğeleri `;` ile ayır.</div>
             ) : null}
           </div>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
-            <input type="checkbox" checked={form.isRequired} onChange={(e) => setForm((prev) => ({ ...prev, isRequired: e.target.checked }))} />
-            Zorunlu alan
-          </label>
+          {isOwned ? (
+            <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
+              <input type="checkbox" checked={form.isRequired} onChange={(e) => setForm((prev) => ({ ...prev, isRequired: e.target.checked }))} />
+              Zorunlu alan
+            </label>
+          ) : null}
         </div>
+
+        {form.dataType !== 'object' ? (
+          <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 space-y-3">
+            <div className="text-xs font-semibold text-violet-800">Bu Node İçin Varsayılan Değer Geçersiz Kılma</div>
+            {property?.default_value != null ? (
+              <div className="text-xs text-muted-foreground">
+                Tanım değeri: <span className="font-medium text-foreground">{property.default_value}</span>
+              </div>
+            ) : null}
+            {hasOverride ? (
+              <div className="text-xs text-violet-700">
+                Mevcut geçersiz kılma: <span className="font-medium">{property?.node_override_value}</span>
+              </div>
+            ) : null}
+            <div className="flex items-center gap-2">
+              <input
+                value={overrideVal}
+                onChange={(e) => setOverrideVal(e.target.value)}
+                placeholder={form.dataType === 'array' ? 'deger1;deger2' : 'Geçersiz kılma değeri'}
+                className="flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-sm focus:outline-none focus:border-primary"
+                disabled={overrideBusy}
+              />
+              <button
+                type="button"
+                onClick={() => void handleOverrideSave()}
+                disabled={overrideBusy}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
+              >
+                {overrideBusy ? '...' : 'Kaydet'}
+              </button>
+              {hasOverride ? (
+                <button
+                  type="button"
+                  onClick={() => void handleOverrideClear()}
+                  disabled={overrideBusy}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-60"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Sıfırla
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60">
-            Vazgeç
+            {isOwned ? 'Vazgeç' : 'Kapat'}
           </button>
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={busy}
-            className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-            style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
-          >
-            {busy ? 'Kaydediliyor...' : 'Kaydet'}
-          </button>
+          {isOwned ? (
+            <button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={busy}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
+            >
+              {busy ? 'Kaydediliyor...' : 'Kaydet'}
+            </button>
+          ) : null}
         </div>
       </div>
     </Modal>
@@ -450,11 +544,14 @@ interface PropertyTreeRowProps {
 
 function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAddChild, onEdit, onDelete, onDuplicate }: PropertyTreeRowProps) {
   const [open, setOpen] = useState(true)
+
   const property = node.property
   const isOwned = property.defined_at_curriculum_node_id === currentNodeId
   const canHaveChildren = property.data_type === 'object' || property.data_type === 'array'
   const hasChildren = node.children.length > 0
   const definedAtName = curriculumNodeNames.get(property.defined_at_curriculum_node_id) ?? '—'
+  const hasOverride = property.has_node_override === true
+  const effectiveDefault = property.effective_default_value ?? property.default_value
 
   const cardClass = isOwned
     ? 'border-border bg-white'
@@ -481,7 +578,7 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
         <div className={`flex-1 rounded-xl border px-3 py-2 ${cardClass}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className={`truncate text-sm font-medium ${labelClass}`}>{property.label}</div>
                 <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
                   {property.data_type}
@@ -495,8 +592,24 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
                     {definedAtName}
                   </span>
                 ) : null}
+                {hasOverride ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
+                    geçersiz kılındı
+                  </span>
+                ) : null}
               </div>
               <div className="mt-1 truncate text-xs text-muted-foreground">{property.canonical_path}</div>
+              {effectiveDefault != null && property.data_type !== 'object' ? (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  varsayılan:{' '}
+                  <span className={hasOverride ? 'font-medium text-violet-700' : 'text-foreground'}>
+                    {effectiveDefault}
+                  </span>
+                  {hasOverride && property.default_value != null ? (
+                    <span className="ml-1 line-through opacity-50">{property.default_value}</span>
+                  ) : null}
+                </div>
+              ) : null}
               {property.description ? (
                 <div className={`mt-1 text-xs ${isOwned ? 'text-muted-foreground' : 'text-muted-foreground/80'}`}>
                   {property.description}
@@ -516,18 +629,18 @@ function PropertyTreeRow({ node, currentNodeId, curriculumNodeNames, busy, onAdd
                   <Plus className="h-4 w-4" />
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => onEdit(property)}
+                disabled={busy}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground hover:bg-accent disabled:opacity-60"
+                aria-label="Düzenle"
+                title="Düzenle"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
               {isOwned ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(property)}
-                    disabled={busy}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground hover:bg-accent disabled:opacity-60"
-                    aria-label="Düzenle"
-                    title="Düzenle"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
                   <button
                     type="button"
                     onClick={() => onDuplicate(node)}
@@ -825,6 +938,7 @@ export function FieldsManagementPage() {
           open={editModal.open}
           onClose={() => setEditModal({ open: false, property: null })}
           property={editModal.property}
+          currentNodeId={nodeId}
           onSaved={reload}
           setNotice={setNotice}
         />
