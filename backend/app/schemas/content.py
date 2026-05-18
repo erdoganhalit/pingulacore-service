@@ -81,6 +81,19 @@ class PropertyResponse(BaseModel):
     is_required: bool
     is_active: bool
     created_at: str
+    effective_default_value: str | None = None
+    node_override_value: str | None = None
+    has_node_override: bool = False
+
+
+class PropertyDefaultOverrideUpsertRequest(BaseModel):
+    override_value: str | None = None
+
+
+class PropertyDefaultOverrideResponse(BaseModel):
+    property_definition_id: str
+    curriculum_node_id: str
+    override_value: str | None
 
 
 class YamlTemplateCreateRequest(BaseModel):

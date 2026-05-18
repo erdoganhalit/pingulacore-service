@@ -635,7 +635,10 @@ def delete_property_definition(db: Session, property_id: str) -> bool:
     return True
 
 
-def list_effective_properties(db: Session, curriculum_node_id: str) -> list[models.PropertyDefinition]:
+def list_effective_properties(
+    db: Session,
+    curriculum_node_id: str,
+) -> list[models.PropertyDefinition]:
     scope = _resolve_curriculum_node_scope(db, curriculum_node_id)
     if scope is None:
         raise ValueError("curriculum node bulunamadı")
@@ -683,7 +686,100 @@ def list_effective_properties(db: Session, curriculum_node_id: str) -> list[mode
     by_path: dict[str, models.PropertyDefinition] = {}
     for row in db.scalars(stmt).all():
         by_path[row.canonical_path] = row
-    return sorted(by_path.values(), key=lambda item: item.canonical_path)
+
+    result = sorted(by_path.values(), key=lambda item: item.canonical_path)
+
+    # Load overrides for ALL ancestors; most specific (deepest, highest index) wins
+    node_depth = {node_id: idx for idx, node_id in enumerate(ancestor_ids)}
+    all_overrides = db.scalars(
+        select(models.PropertyDefaultOverride).where(
+            models.PropertyDefaultOverride.curriculum_node_id.in_(ancestor_ids)
+        )
+    ).all()
+    # effective override map: property_id -> (depth, value) — keep deepest
+    effective_override: dict[str, tuple[int, str | None]] = {}
+    for o in all_overrides:
+        depth = node_depth.get(o.curriculum_node_id, -1)
+        if o.property_definition_id not in effective_override or depth > effective_override[o.property_definition_id][0]:
+            effective_override[o.property_definition_id] = (depth, o.override_value)
+
+    # Overrides set exactly on this node (for UI "has_node_override" badge)
+    exact_overrides: dict[str, str | None] = {
+        o.property_definition_id: o.override_value
+        for o in all_overrides
+        if o.curriculum_node_id == curriculum_node_id
+    }
+
+    for row in result:
+        eff = effective_override.get(row.id)
+        row.__dict__["_has_node_override"] = row.id in exact_overrides
+        row.__dict__["_node_override_value"] = exact_overrides.get(row.id)
+        row.__dict__["_effective_default_value"] = eff[1] if eff is not None else row.default_value
+
+    return result
+
+
+def upsert_property_default_override(
+    db: Session,
+    *,
+    property_definition_id: str,
+    curriculum_node_id: str,
+    override_value: str | None,
+) -> models.PropertyDefaultOverride:
+    existing = db.scalar(
+        select(models.PropertyDefaultOverride).where(
+            models.PropertyDefaultOverride.property_definition_id == property_definition_id,
+            models.PropertyDefaultOverride.curriculum_node_id == curriculum_node_id,
+        )
+    )
+    if existing is not None:
+        existing.override_value = override_value
+        db.add(existing)
+        db.commit()
+        db.refresh(existing)
+        return existing
+    row = models.PropertyDefaultOverride(
+        id=str(uuid4()),
+        property_definition_id=property_definition_id,
+        curriculum_node_id=curriculum_node_id,
+        override_value=override_value,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def delete_property_default_override(
+    db: Session,
+    *,
+    property_definition_id: str,
+    curriculum_node_id: str,
+) -> bool:
+    row = db.scalar(
+        select(models.PropertyDefaultOverride).where(
+            models.PropertyDefaultOverride.property_definition_id == property_definition_id,
+            models.PropertyDefaultOverride.curriculum_node_id == curriculum_node_id,
+        )
+    )
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
+
+
+def list_property_default_overrides_for_node(
+    db: Session,
+    curriculum_node_id: str,
+) -> list[models.PropertyDefaultOverride]:
+    return list(
+        db.scalars(
+            select(models.PropertyDefaultOverride).where(
+                models.PropertyDefaultOverride.curriculum_node_id == curriculum_node_id
+            )
+        ).all()
+    )
 
 
 def create_yaml_template(

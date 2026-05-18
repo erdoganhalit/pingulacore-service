@@ -283,6 +283,18 @@ export const api = {
       method: 'DELETE',
     }),
 
+  upsertPropertyOverride: (nodeId: string, propertyId: string, overrideValue: string | null) =>
+    apiFetch<unknown>(`/v1/curriculum/nodes/${nodeId}/property-overrides/${propertyId}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ override_value: overrideValue }),
+    }),
+
+  deletePropertyOverride: (nodeId: string, propertyId: string) =>
+    apiFetch<unknown>(`/v1/curriculum/nodes/${nodeId}/property-overrides/${propertyId}`, {
+      method: 'DELETE',
+    }),
+
   listYamlTemplates: (params?: { curriculum_folder_node_id?: string }) =>
     apiFetch<YamlTemplateItem[]>(
       withQuery('/v1/yaml-templates', {
