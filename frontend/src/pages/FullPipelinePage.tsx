@@ -202,7 +202,7 @@ export function FullPipelinePage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <FileCode className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                <span>YAML Instance</span>
+                <span>YAML Kaydı</span>
               </div>
               <YamlInstanceCascadeSelector
                 curriculumTree={curriculumTree}

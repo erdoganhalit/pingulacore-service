@@ -24,7 +24,7 @@ const features = [
   {
     Icon: BookOpen,
     title: 'Müfredat Yönetimi',
-    desc: 'Property definitions, YAML templates ve YAML instances kayıtlarını yönet.',
+    desc: 'Özellik tanımları, YAML şablonları ve YAML kayıtlarını yönet.',
     to: '/content',
   },
 ]

@@ -18,6 +18,7 @@ interface CurriculumTreePickerProps {
   onAddTemplate?: (node: CurriculumNodeItem) => void
   onManageProperties?: (node: CurriculumNodeItem) => void
   onDeleteNode?: (node: CurriculumNodeItem) => void
+  onDeleteTemplate?: (template: YamlTemplateItem) => void
 }
 
 // depth 0=Root, 1=Grade, 2=Subject, 3=Unit, 4+=Folder
@@ -92,6 +93,7 @@ export function CurriculumTreePicker({
   onAddTemplate,
   onManageProperties,
   onDeleteNode,
+  onDeleteTemplate,
 }: CurriculumTreePickerProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(collectDefaultExpanded(nodes)))
 
@@ -242,10 +244,24 @@ export function CurriculumTreePicker({
                         <div className="truncate text-xs text-muted-foreground">{tpl.template_code}</div>
                       </div>
                       <span className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
-                        Template
+                        Şablon
                       </span>
                     </div>
                   </button>
+                  {onDeleteTemplate && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteTemplate(tpl)
+                      }}
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50"
+                      aria-label="Şablonu sil"
+                      title="Şablonu sil"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

@@ -555,7 +555,7 @@ export function YamlCreatePage() {
 
   const handleCreateInstance = async () => {
     if (!openedTemplate) {
-      setNotice({ tone: 'error', message: 'Önce bir template açmalısın.' })
+      setNotice({ tone: 'error', message: 'Önce bir şablon açmalısın.' })
       return
     }
     if (!yamlName.trim()) {
@@ -604,15 +604,15 @@ export function YamlCreatePage() {
                 YAML Oluştur
               </h1>
               <p className="mt-2 text-lg text-muted-foreground">
-                Dinamik müfredat filtrelerinden template seç, property değerlerini doldur ve YAML instance üret.
+                Dinamik müfredat filtrelerinden şablon seç, özellik değerlerini doldur ve YAML kaydı üret.
               </p>
             </div>
             <div className="rounded-2xl border border-border bg-background px-5 py-4 text-sm text-muted-foreground shadow-sm">
               <div className="flex items-center gap-2 font-medium text-foreground">
                 <BookOpen className="h-4 w-4" />
-                Template'den Instance
+                Şablon'dan Kayıt / Dosya
               </div>
-              <div className="mt-1">Sınıf → Ders → Ünite → Template akışı ile YAML instance oluştur.</div>
+              <div className="mt-1">Sınıf → Ders → Ünite → Şablon akışı ile YAML kaydı oluştur.</div>
             </div>
           </div>
         </div>
@@ -652,7 +652,7 @@ export function YamlCreatePage() {
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Seçimi</h2>
+              <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Şablon Seçimi</h2>
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Sınıf</label>
@@ -746,7 +746,7 @@ export function YamlCreatePage() {
             {openedTemplate ? (
               <div className="rounded-2xl border border-border bg-card p-6">
                 <div className="mb-4">
-                  <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Özellikleri</h2>
+                  <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Şablon Özellikleri</h2>
                   <p className="text-sm text-muted-foreground">
                     {openedTemplate.title} · {openedTemplate.template_code} · {nodeById.get(openedTemplate.curriculum_folder_node_id)?.path ?? '-'}
                   </p>
