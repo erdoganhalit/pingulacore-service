@@ -215,7 +215,7 @@ export function FullPipelinePage() {
               />
             </div>
 
-            {/* Retry Grid */}
+            {/* Retry Inputs */}
             <div className="grid grid-cols-3 gap-5">
               {(
                 [
@@ -224,7 +224,7 @@ export function FullPipelinePage() {
                   { key: 'html_max_retries', label: 'HTML Yeniden Deneme' },
                 ] as const
               ).map(({ key, label }) => (
-                <div key={key} className="space-y-2">
+                <div key={key} className="space-y-1">
                   <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                     {label}

@@ -14,6 +14,26 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase()
 }
 
+interface SelectRowProps {
+  label: string
+  selectedLabel: string | null
+  children: React.ReactNode
+}
+
+function SelectRow({ label, selectedLabel, children }: SelectRowProps) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline gap-2">
+        <span className="text-sm font-bold text-foreground">{label}</span>
+        {selectedLabel ? (
+          <span className="text-sm font-normal text-muted-foreground">{selectedLabel}</span>
+        ) : null}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 interface YamlInstanceCascadeSelectorProps {
   curriculumTree: CurriculumNodeItem[]
   templates: YamlTemplateItem[]
@@ -31,7 +51,6 @@ export function YamlInstanceCascadeSelector({
   instances,
   value,
   onChange,
-  label = 'YAML Instance',
   selectClassName,
   inputClassName,
 }: YamlInstanceCascadeSelectorProps) {
@@ -69,6 +88,10 @@ export function YamlInstanceCascadeSelector({
   const [selectedFolderPath, setSelectedFolderPath] = useState<string[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [search, setSearch] = useState('')
+
+  const selectedGrade = useMemo(() => gradeNodes.find((n) => n.id === selectedGradeId) ?? null, [gradeNodes, selectedGradeId])
+  const selectedSubject = useMemo(() => subjectNodes.find((n) => n.id === selectedSubjectId) ?? null, [subjectNodes, selectedSubjectId])
+  const selectedUnit = useMemo(() => unitNodes.find((n) => n.id === selectedUnitId) ?? null, [unitNodes, selectedUnitId])
 
   const isDescendantOf = (nodeId: string, ancestorId: string): boolean => {
     let cursor: CurriculumNodeItem | undefined = nodeById.get(nodeId)
@@ -233,89 +256,111 @@ export function YamlInstanceCascadeSelector({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-foreground">{label}</label>
+      {/* Search */}
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-muted-foreground">Kayıt Ara</div>
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Tüm kayıtlarda ara (ad, id, durum...)"
+          className={inputClassName}
+        />
+      </div>
 
-      <input
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Tüm instance'larda ara (ad, id, durum...)"
-        className={inputClassName}
-      />
+      {/* Sınıf + Ders — same row */}
+      <div className="grid grid-cols-2 gap-3">
+        <SelectRow label="Sınıf" selectedLabel={selectedGrade?.name ?? null}>
+          <select value={selectedGradeId} onChange={(event) => onGradeChange(event.target.value)} className={selectClassName}>
+            <option value="">Sınıf seç</option>
+            {gradeNodes.map((node) => (
+              <option key={node.id} value={node.id}>{node.name}</option>
+            ))}
+          </select>
+        </SelectRow>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <select value={selectedGradeId} onChange={(event) => onGradeChange(event.target.value)} className={selectClassName}>
-          <option value="">Sınıf seç</option>
-          {gradeNodes.map((node) => (
-            <option key={node.id} value={node.id}>{node.name}</option>
-          ))}
-        </select>
+        <SelectRow label="Ders" selectedLabel={selectedSubject?.name ?? null}>
+          <select value={selectedSubjectId} onChange={(event) => onSubjectChange(event.target.value)} className={selectClassName} disabled={!selectedGradeId}>
+            <option value="">Ders seç</option>
+            {subjectNodes.map((node) => (
+              <option key={node.id} value={node.id}>{node.name}</option>
+            ))}
+          </select>
+        </SelectRow>
+      </div>
 
-        <select value={selectedSubjectId} onChange={(event) => onSubjectChange(event.target.value)} className={selectClassName} disabled={!selectedGradeId}>
-          <option value="">Ders seç</option>
-          {subjectNodes.map((node) => (
-            <option key={node.id} value={node.id}>{node.name}</option>
-          ))}
-        </select>
-
+      {/* Ünite — own row */}
+      <SelectRow label="Ünite" selectedLabel={selectedUnit?.name ?? null}>
         <select value={selectedUnitId} onChange={(event) => onUnitChange(event.target.value)} className={selectClassName} disabled={!selectedSubjectId}>
           <option value="">Ünite seç</option>
           {unitNodes.map((node) => (
             <option key={node.id} value={node.id}>{node.name}</option>
           ))}
         </select>
-      </div>
+      </SelectRow>
 
-      {folderLevels.map((level, index) => (
-        <div key={`${level.parentId}-${index}`} className="grid gap-3 md:grid-cols-2">
-          <select
-            value={level.selectedId}
-            onChange={(event) => onFolderLevelChange(index, event.target.value)}
-            className={selectClassName}
-            disabled={!selectedUnitId}
+      {/* Folder levels — each own row */}
+      {folderLevels.map((level, index) => {
+        const selectedFolder = level.options.find((n) => n.id === level.selectedId) ?? null
+        return (
+          <SelectRow
+            key={`${level.parentId}-${index}`}
+            label={index === 0 ? 'Konu / Klasör' : `Alt Klasör ${index + 1}`}
+            selectedLabel={selectedFolder?.name ?? null}
           >
-            <option value="">{index === 0 ? 'Konu / klasör seç' : `Alt klasör ${index + 1} seç`}</option>
-            {level.options.map((node) => (
-              <option key={node.id} value={node.id}>{node.name}</option>
-            ))}
-          </select>
-        </div>
-      ))}
+            <select
+              value={level.selectedId}
+              onChange={(event) => onFolderLevelChange(index, event.target.value)}
+              className={selectClassName}
+              disabled={!selectedUnitId}
+            >
+              <option value="">{index === 0 ? 'Konu / klasör seç' : `Alt klasör ${index + 1} seç`}</option>
+              {level.options.map((node) => (
+                <option key={node.id} value={node.id}>{node.name}</option>
+              ))}
+            </select>
+          </SelectRow>
+        )
+      })}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      {/* YAML Şablonu — own row */}
+      <SelectRow label="YAML Şablonu" selectedLabel={selectedTemplate ? `${selectedTemplate.title} · ${selectedTemplate.template_code}` : null}>
         <select
           value={selectedTemplateId}
           onChange={(event) => onTemplateChange(event.target.value)}
           className={selectClassName}
           disabled={filteredTemplates.length === 0}
         >
-          <option value="">Template seç</option>
+          <option value="">Şablon seç</option>
           {filteredTemplates.map((template) => (
             <option key={template.id} value={template.id}>
               {template.title} · {template.template_code}
             </option>
           ))}
         </select>
-      </div>
+      </SelectRow>
 
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={selectClassName}
-        disabled={filteredInstances.length === 0}
-      >
-        {filteredInstances.length === 0 ? (
-          <option value="">Instance bulunamadı</option>
-        ) : (
-          filteredInstances.map((item) => (
-            <option key={item.id} value={item.id}>{item.instance_name}</option>
-          ))
-        )}
-      </select>
+      {/* YAML Kaydı — own row */}
+      <SelectRow label="YAML Kaydı" selectedLabel={selectedInstance?.instance_name ?? null}>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={selectClassName}
+          disabled={filteredInstances.length === 0}
+        >
+          {filteredInstances.length === 0 ? (
+            <option value="">Kayıt bulunamadı</option>
+          ) : (
+            filteredInstances.map((item) => (
+              <option key={item.id} value={item.id}>{item.instance_name}</option>
+            ))
+          )}
+        </select>
+      </SelectRow>
 
       {selectedInstance ? (
         <p className="text-xs text-muted-foreground">
-          id: <code>{selectedInstance.id}</code> · status: {selectedInstance.status}
-          {selectedTemplate ? ` · template: ${selectedTemplate.template_code}` : ''}
+          id: <code>{selectedInstance.id}</code> · durum: {selectedInstance.status}
+          {selectedTemplate ? ` · şablon: ${selectedTemplate.template_code}` : ''}
         </p>
       ) : null}
     </div>
