@@ -20,6 +20,7 @@ import { api } from './lib/api'
 import { AgentsPage } from './pages/AgentsPage'
 import { CatalogAssetsPage } from './pages/CatalogAssetsPage'
 import { ContentManagementPage } from './pages/ContentManagementPage'
+import { FieldsManagementPage } from './pages/FieldsManagementPage'
 import { FilesPage } from './pages/FilesPage'
 import { FullPipelinePage } from './pages/FullPipelinePage'
 import { HomePage } from './pages/HomePage'
@@ -39,8 +40,8 @@ const navigation: NavigationItem[] = [
   { kind: 'link', to: '/', label: 'Ana Sayfa', Icon: Home, end: true },
   { kind: 'spacer', key: 'top-gap' },
   { kind: 'link', to: '/full', label: 'Full Pipeline', Icon: GitBranch, end: false },
-  { kind: 'link', to: '/sub-pipelines', label: 'Sub-Pipelines', Icon: Split, end: false },
-  { kind: 'link', to: '/agents', label: 'Standalone Agents', Icon: Bot, end: false },
+  { kind: 'link', to: '/sub-pipelines', label: 'Sub-Pipeline\'lar', Icon: Split, end: false },
+  { kind: 'link', to: '/agents', label: 'Bağımsız Agent\'lar', Icon: Bot, end: false },
   { kind: 'divider', key: 'group-divider-1' },
   { kind: 'link', to: '/content', label: 'Müfredat Yönetimi', Icon: BookOpen, end: false },
   { kind: 'link', to: '/catalog-assets', label: 'Katalog Görselleri', Icon: ImageIcon, end: false },
@@ -183,6 +184,7 @@ function AppLayout() {
           <Route path="/legacy" element={<LegacyPipelinePage />} />
           <Route path="/catalog-assets" element={<CatalogAssetsPage />} />
           <Route path="/content" element={<ContentManagementPage />} />
+          <Route path="/content/fields/:nodeId" element={<FieldsManagementPage />} />
           <Route path="/content/yaml-create" element={<YamlCreatePage />} />
           <Route path="/templates" element={<Navigate to="/content" replace />} />
         </Routes>

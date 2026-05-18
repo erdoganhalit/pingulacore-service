@@ -112,11 +112,11 @@ export function AgentRunsPanel({ title, links, onRefresh }: AgentRunsPanelProps)
 
           {groupedByAttempt.length > 0 && (
             <div className="mt-4 space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Attempt Grupları</h4>
+              <h4 className="text-sm font-medium text-foreground">Deneme Grupları</h4>
               {groupedByAttempt.map(([attempt, rows]) => (
                 <div key={attempt} className="border border-dashed border-border rounded-xl p-4">
                   <h5 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                    Attempt {attempt}
+                    Deneme {attempt}
                   </h5>
                   <div className="space-y-1.5">
                     {rows.map((row) => (

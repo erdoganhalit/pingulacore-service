@@ -185,7 +185,7 @@ export function FullPipelinePage() {
           <h1 className="text-3xl mb-1" style={{ fontFamily: 'var(--font-display)' }}>
             Full Pipeline
           </h1>
-          <p className="text-muted-foreground">Complete pipeline from YAML to HTML output</p>
+          <p className="text-muted-foreground">YAML'dan HTML çıktısına kadar uçtan uca pipeline</p>
         </div>
 
         {/* Configuration Card */}
@@ -193,7 +193,7 @@ export function FullPipelinePage() {
           <div className="px-8 py-5 border-b border-border"
             style={{ background: 'linear-gradient(to right, var(--accent), var(--muted))' }}>
             <h2 className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
-              Pipeline Configuration
+              Pipeline Yapılandırması
             </h2>
           </div>
 
@@ -219,9 +219,9 @@ export function FullPipelinePage() {
             <div className="grid grid-cols-3 gap-5">
               {(
                 [
-                  { key: 'question_max_retries', label: 'Question Retry' },
-                  { key: 'layout_max_retries', label: 'Layout Retry' },
-                  { key: 'html_max_retries', label: 'HTML Retry' },
+                  { key: 'question_max_retries', label: 'Question Yeniden Deneme' },
+                  { key: 'layout_max_retries', label: 'Layout Yeniden Deneme' },
+                  { key: 'html_max_retries', label: 'HTML Yeniden Deneme' },
                 ] as const
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-2">
@@ -262,7 +262,7 @@ export function FullPipelinePage() {
               style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
             >
               <RefreshCw className="w-4 h-4" />
-              Refresh now
+              Şimdi Yenile
             </button>
           </div>
         </div>
@@ -313,7 +313,7 @@ export function FullPipelinePage() {
             {htmlFromResponse && (
               <>
                 <HtmlViewer title="Full Pipeline HTML" html={htmlFromResponse} onEditClick={() => setEditorOpenMain(true)} />
-                <Modal open={editorOpenMain} onClose={() => setEditorOpenMain(false)} size="full" title="HTML Layout Editor">
+                <Modal open={editorOpenMain} onClose={() => setEditorOpenMain(false)} size="full" title="HTML Layout Düzenleyici">
                   <HtmlLayoutEditor
                     html={htmlFromResponse}
                     onSave={(edited) => { void handleSaveEditedHtml(edited) }}
@@ -327,11 +327,11 @@ export function FullPipelinePage() {
             {fullRenderedImageUrl && (
               <div className="bg-card rounded-xl border border-border p-5">
                 <h3 className="text-sm font-medium text-foreground mb-3">
-                  Full Pipeline Final Render PNG {reRendering ? '(yeniden render ediliyor...)' : ''}
+                  Full Pipeline Nihai Render PNG {reRendering ? '(yeniden render ediliyor...)' : ''}
                 </h3>
                 <img
                   src={fullRenderedImageUrl}
-                  alt="Full pipeline final render"
+                  alt="Full pipeline nihai render"
                   className="w-full rounded-lg border border-border"
                   style={{ maxWidth: 960 }}
                 />
@@ -340,10 +340,10 @@ export function FullPipelinePage() {
 
             {/* Pipeline Logs & Agent Runs */}
             <PipelineLogsPanel title="Pipeline Event Logları" logs={pipelineLogs} onRefresh={refreshAll} />
-            <AgentRunsPanel title="Pipeline Agent Runs" links={pipelineRuns} onRefresh={refreshAll} />
+            <AgentRunsPanel title="Pipeline Agent Run'ları" links={pipelineRuns} onRefresh={refreshAll} />
           </div>
         )}
-        <LogStreamPanel lines={lines} connected={connected} done={done} title="Full Pipeline Logs" active={active} />
+        <LogStreamPanel lines={lines} connected={connected} done={done} title="Full Pipeline Logları" active={active} />
       </motion.div>
     </div>
   )

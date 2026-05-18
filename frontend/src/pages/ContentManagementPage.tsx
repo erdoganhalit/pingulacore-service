@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
   BookOpen,
@@ -101,9 +102,9 @@ interface InstanceFormState {
 }
 
 export const CONTENT_TABS: { id: ContentTab; label: string; Icon: typeof Layers3 }[] = [
-  { id: 'properties', label: 'Property Definitions', Icon: Layers3 },
-  { id: 'templates', label: 'YAML Templates', Icon: FolderTree },
-  { id: 'instances', label: 'YAML Instances', Icon: Box },
+  { id: 'properties', label: 'Property Tanımları', Icon: Layers3 },
+  { id: 'templates', label: 'YAML Template\'leri', Icon: FolderTree },
+  { id: 'instances', label: 'YAML Instance\'ları', Icon: Box },
 ]
 
 const DATA_TYPE_OPTIONS: PropertyDataType[] = ['text', 'bool', 'number', 'json', 'array', 'enum', 'object']
@@ -662,13 +663,13 @@ function PropertyFormModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Property Definition Oluştur' : 'Property Definition Düzenle'}>
+    <Modal open={open} onClose={onClose} title={mode === 'create' ? 'Property Tanımı Oluştur' : 'Property Tanımı Düzenle'}>
       <div className="space-y-5 p-6">
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Defined At Curriculum Node</label>
+            <label className="text-sm font-medium text-foreground">Tanımlandığı Müfredat Düğümü</label>
             <select
               value={form.definedAtCurriculumNodeId}
               onChange={(event) => setForm((prev) => ({ ...prev, definedAtCurriculumNodeId: event.target.value, parentPropertyId: '' }))}
@@ -683,22 +684,22 @@ function PropertyFormModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Label</label>
-            <input aria-label="Property label" value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} className={inputClass} />
+            <label className="text-sm font-medium text-foreground">Etiket</label>
+            <input aria-label="Property etiketi" value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} className={inputClass} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Property Key</label>
-            <input aria-label="Property key" value={form.propertyKey} onChange={(event) => setForm((prev) => ({ ...prev, propertyKey: event.target.value }))} className={inputClass} />
+            <label className="text-sm font-medium text-foreground">Property Anahtarı</label>
+            <input aria-label="Property anahtarı" value={form.propertyKey} onChange={(event) => setForm((prev) => ({ ...prev, propertyKey: event.target.value }))} className={inputClass} />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Canonical Path</label>
-            <input aria-label="Canonical path" value={form.canonicalPath} onChange={(event) => setForm((prev) => ({ ...prev, canonicalPath: event.target.value }))} className={inputClass} />
+            <label className="text-sm font-medium text-foreground">Kanonik Yol</label>
+            <input aria-label="Kanonik yol" value={form.canonicalPath} onChange={(event) => setForm((prev) => ({ ...prev, canonicalPath: event.target.value }))} className={inputClass} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Data Type</label>
+            <label className="text-sm font-medium text-foreground">Veri Tipi</label>
             <select
-              aria-label="Property data type"
+              aria-label="Property veri tipi"
               value={form.dataType}
               onChange={(event) =>
                 setForm((prev) => ({
@@ -713,9 +714,9 @@ function PropertyFormModal({
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Default Value</label>
+            <label className="text-sm font-medium text-foreground">Varsayılan Değer</label>
             <input
-              aria-label="Property default value"
+              aria-label="Property varsayılan değeri"
               value={form.defaultValue}
               onChange={(event) => setForm((prev) => ({ ...prev, defaultValue: event.target.value }))}
               className={inputClass}
@@ -728,14 +729,14 @@ function PropertyFormModal({
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Description</label>
-            <textarea aria-label="Property description" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} />
+            <label className="text-sm font-medium text-foreground">Açıklama</label>
+            <textarea aria-label="Property açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} />
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium text-foreground">Parent Property</label>
-            <select aria-label="Parent property" value={form.parentPropertyId} onChange={(event) => setForm((prev) => ({ ...prev, parentPropertyId: event.target.value }))} className={selectClass}>
-              <option value="">Parent yok</option>
+            <label className="text-sm font-medium text-foreground">Üst Property</label>
+            <select aria-label="Üst property" value={form.parentPropertyId} onChange={(event) => setForm((prev) => ({ ...prev, parentPropertyId: event.target.value }))} className={selectClass}>
+              <option value="">Üst öğe yok</option>
               {parentOptions.map((item) => (
                 <option key={item.id} value={item.id}>{item.label} · {item.canonical_path}</option>
               ))}
@@ -744,7 +745,7 @@ function PropertyFormModal({
 
           <div className="space-y-2 md:col-span-2">
             <JsonEditor
-              label="Constraints (JSON)"
+              label="Kısıtlamalar (JSON)"
               value={form.constraintsText}
               onChange={(value) => setForm((prev) => ({ ...prev, constraintsText: value }))}
               rows={8}
@@ -858,26 +859,26 @@ function SchemaFieldListEditor({
             <div className="ml-4 rounded-lg border border-border/70 bg-card p-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Data Type</label>
+                  <label className="text-xs font-medium text-muted-foreground">Veri Tipi</label>
                   <select
                     value={field.type}
                     onChange={(event) =>
                       onChange(mapDraftTree(fields, field.id, (target) => resetDraftType(target, event.target.value as SchemaFieldType)))
                     }
                     className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
-                    aria-label="Schema field type"
+                    aria-label="Schema alan tipi"
                   >
                     {SCHEMA_FIELD_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1 md:col-span-2">
-                  <label className="text-xs font-medium text-muted-foreground">Description</label>
+                  <label className="text-xs font-medium text-muted-foreground">Açıklama</label>
                   <textarea
                     value={field.description}
                     onChange={(event) => onChange(mapDraftTree(fields, field.id, (target) => ({ ...target, description: event.target.value })))}
                     className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
                     rows={2}
-                    aria-label="Schema field description"
+                    aria-label="Schema alan açıklaması"
                     placeholder="Açıklama"
                   />
                 </div>
@@ -1012,7 +1013,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-foreground">Curriculum Folder</label>
+              <label className="text-sm font-medium text-foreground">Müfredat Klasörü</label>
               <select
                 value={form.curriculumFolderNodeId}
                 onChange={(event) => setForm((prev) => ({ ...prev, curriculumFolderNodeId: event.target.value }))}
@@ -1028,33 +1029,33 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Template Code</label>
-              <input aria-label="Template code" value={form.templateCode} onChange={(event) => setForm((prev) => ({ ...prev, templateCode: event.target.value }))} className={inputClass} />
+              <label className="text-sm font-medium text-foreground">Template Kodu</label>
+              <input aria-label="Template kodu" value={form.templateCode} onChange={(event) => setForm((prev) => ({ ...prev, templateCode: event.target.value }))} className={inputClass} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Schema Version</label>
-              <input aria-label="Schema version" value={form.schemaVersion} onChange={(event) => setForm((prev) => ({ ...prev, schemaVersion: event.target.value }))} className={inputClass} />
+              <label className="text-sm font-medium text-foreground">Schema Sürümü</label>
+              <input aria-label="Schema sürümü" value={form.schemaVersion} onChange={(event) => setForm((prev) => ({ ...prev, schemaVersion: event.target.value }))} className={inputClass} />
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-foreground">Title</label>
-              <input aria-label="Template title" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} />
+              <label className="text-sm font-medium text-foreground">Başlık</label>
+              <input aria-label="Template başlığı" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} />
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-foreground">Description</label>
-              <textarea aria-label="Template description" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} rows={4} />
+              <label className="text-sm font-medium text-foreground">Açıklama</label>
+              <textarea aria-label="Template açıklaması" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={textareaClass} rows={4} />
             </div>
 
             {mode === 'create' ? (
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-foreground">Created By</label>
-                <input aria-label="Template created by" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
+                <label className="text-sm font-medium text-foreground">Oluşturan</label>
+                <input aria-label="Template oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
               </div>
             ) : (
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-foreground">Status</label>
-                <select aria-label="Template status" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'active' | 'archived' }))} className={selectClass}>
+                <label className="text-sm font-medium text-foreground">Durum</label>
+                <select aria-label="Template durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'active' | 'archived' }))} className={selectClass}>
                   <option value="active">active</option>
                   <option value="archived">archived</option>
                 </select>
@@ -1065,7 +1066,7 @@ function TemplateFormModal({ open, mode, initialTemplate, folderNodes, defaultFo
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Field Schema Builder</h4>
+                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Alan Schema Düzenleyici</h4>
                 <p className="text-sm text-muted-foreground">Root her zaman object kabul edilir. Alt alanları aşağıdan yönet.</p>
               </div>
             </div>
@@ -1489,31 +1490,31 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Instance Name</label>
-                <input aria-label="Instance name" value={form.instanceName} onChange={(event) => setForm((prev) => ({ ...prev, instanceName: event.target.value }))} className={inputClass} />
+                <label className="text-sm font-medium text-foreground">Instance İsmi</label>
+                <input aria-label="Instance ismi" value={form.instanceName} onChange={(event) => setForm((prev) => ({ ...prev, instanceName: event.target.value }))} className={inputClass} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Status</label>
-                <select aria-label="Instance status" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'draft' | 'final' | 'archived' }))} className={selectClass}>
+                <label className="text-sm font-medium text-foreground">Durum</label>
+                <select aria-label="Instance durumu" value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as 'draft' | 'final' | 'archived' }))} className={selectClass}>
                   {INSTANCE_STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </div>
 
               {mode === 'create' && (
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-foreground">Created By</label>
-                  <input aria-label="Instance created by" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
+                  <label className="text-sm font-medium text-foreground">Oluşturan</label>
+                  <input aria-label="Instance oluşturan" value={form.createdBy} onChange={(event) => setForm((prev) => ({ ...prev, createdBy: event.target.value }))} className={inputClass} />
                 </div>
               )}
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-5">
               <div className="mb-4">
-                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Values</h4>
-                <p className="text-sm text-muted-foreground">Schema’ya göre otomatik üretilen form.</p>
+                <h4 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Değerleri</h4>
+                <p className="text-sm text-muted-foreground">Schema'ya göre otomatik üretilen form.</p>
               </div>
               {Object.keys(normalizedSchema.properties ?? {}).length === 0 ? (
-                <JsonValueEditor value={form.values} onChange={(next) => setForm((prev) => ({ ...prev, values: ensureRecord(next) }))} label="Values JSON" />
+                <JsonValueEditor value={form.values} onChange={(next) => setForm((prev) => ({ ...prev, values: ensureRecord(next) }))} label="Değerler JSON" />
               ) : (
                 <DynamicValueEditor
                   schema={normalizedSchema}
@@ -1525,7 +1526,7 @@ function InstanceFormModal({ open, mode, initialInstance, templates, defaultTemp
           </div>
 
           <div className="space-y-4">
-            <JsonPanel title="Raw Values JSON" data={form.values} size="large" />
+            <JsonPanel title="Ham Değerler JSON" data={form.values} size="large" />
           </div>
         </div>
 
@@ -1620,7 +1621,7 @@ export function PropertiesTab({
 
         <div className="space-y-6">
           <CrudToolbar
-            title="Property Definitions"
+            title="Property Tanımları"
             description="Curriculum node bazlı property tanımlarını görüntüle, oluştur ve yönet."
             searchValue={search}
             searchPlaceholder="Label, property key veya canonical path ara"
@@ -1695,7 +1696,7 @@ export function PropertiesTab({
                       <DetailChip label="Parent Property" value={selectedProperty.parent_property_id || '-'} />
                       <DetailChip label="Required" value={selectedProperty.is_required ? 'true' : 'false'} />
                     </div>
-                    <JsonPanel title="Constraints" data={selectedProperty.constraints} emptyText="Constraint yok" />
+                    <JsonPanel title="Kısıtlamalar" data={selectedProperty.constraints} emptyText="Kısıtlama yok" />
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground">Listeden bir property seç.</div>
@@ -1719,7 +1720,7 @@ export function PropertiesTab({
 
       <DeleteConfirmModal
         open={Boolean(deleteTarget)}
-        title="Property Definition Sil"
+        title="Property Tanımı Sil"
         message={deleteTarget ? `${deleteTarget.label} kaydını silmek istediğine emin misin?` : ''}
         busy={deleteBusy}
         onClose={() => setDeleteTarget(null)}
@@ -2108,285 +2109,11 @@ function DetailChip({ label, value }: { label: string; value: string }) {
   )
 }
 
-interface NodePropertyManagerModalProps {
-  open: boolean
-  node: CurriculumNodeItem | null
-  allProperties: PropertyDefinitionItem[]
-  onClose: () => void
-  refreshProperties: () => Promise<PropertyDefinitionItem[]>
-  setNotice: (notice: NoticeState) => void
-}
-
-function NodePropertyManagerModal({
-  open,
-  node,
-  allProperties,
-  onClose,
-  refreshProperties,
-  setNotice,
-}: NodePropertyManagerModalProps) {
-  const [label, setLabel] = useState('')
-  const [propertyKey, setPropertyKey] = useState('')
-  const [canonicalPath, setCanonicalPath] = useState('')
-  const [dataType, setDataType] = useState<PropertyDataType>('text')
-  const [defaultValue, setDefaultValue] = useState('')
-  const [description, setDescription] = useState('')
-  const [parentPropertyId, setParentPropertyId] = useState('')
-  const [isRequired, setIsRequired] = useState(false)
-  const [effectiveParents, setEffectiveParents] = useState<PropertyDefinitionItem[]>([])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [keyTouched, setKeyTouched] = useState(false)
-  const [pathTouched, setPathTouched] = useState(false)
-
-  useEffect(() => {
-    if (!open || !node) return
-    setLabel('')
-    setPropertyKey('')
-    setCanonicalPath('')
-    setDataType('text')
-    setDefaultValue('')
-    setDescription('')
-    setParentPropertyId('')
-    setIsRequired(false)
-    setError('')
-    setBusy(false)
-    setKeyTouched(false)
-    setPathTouched(false)
-    void api.getEffectiveProperties(node.id)
-      .then((rows) => setEffectiveParents(rows))
-      .catch((err) => setError(parseError(err, 'Parent property listesi alınamadı')))
-  }, [open, node])
-
-  const nodeProperties = useMemo(
-    () => allProperties
-      .filter((item) => item.defined_at_curriculum_node_id === node?.id)
-      .sort((a, b) => a.canonical_path.localeCompare(b.canonical_path)),
-    [allProperties, node?.id],
-  )
-
-  const propertyMap = useMemo(() => new Map(allProperties.map((item) => [item.id, item])), [allProperties])
-
-  const parentLabel = (propertyId?: string | null) => {
-    if (!propertyId) return '-'
-    const parent = propertyMap.get(propertyId)
-    if (!parent) return `Silinmiş parent (${propertyId})`
-    return `${parent.label} · ${parent.canonical_path}`
-  }
-
-  const parentChain = (item: PropertyDefinitionItem): string => {
-    const names: string[] = []
-    let cursor = item.parent_property_id
-    let guard = 0
-    while (cursor && guard < 20) {
-      const parent = propertyMap.get(cursor)
-      if (!parent) break
-      names.unshift(parent.label || parent.property_key)
-      cursor = parent.parent_property_id
-      guard += 1
-    }
-    return names.length > 0 ? names.join(' > ') : '-'
-  }
-
-  const handleLabelChange = (value: string) => {
-    setLabel(value)
-    const generated = toSchemaKey(value)
-    if (!keyTouched) setPropertyKey(generated)
-    if (!pathTouched) setCanonicalPath(generated)
-  }
-
-  const handleCreate = async () => {
-    if (!node) return
-    setBusy(true)
-    setError('')
-    try {
-      const trimmedLabel = label.trim()
-      const trimmedKey = propertyKey.trim()
-      const trimmedPath = canonicalPath.trim()
-      if (!trimmedLabel || !trimmedKey || !trimmedPath) {
-        throw new Error('Label, property key ve canonical path zorunlu')
-      }
-      await api.createProperty({
-        defined_at_curriculum_node_id: node.id,
-        parent_property_id: parentPropertyId || null,
-        label: trimmedLabel,
-        description: description.trim() || null,
-        property_key: trimmedKey,
-        canonical_path: trimmedPath,
-        data_type: dataType,
-        default_value: dataType === 'object' ? null : (defaultValue.trim() || null),
-        is_required: isRequired,
-      })
-      await refreshProperties()
-      setNotice({ tone: 'success', message: `${node.name} için yeni property eklendi.` })
-      setLabel('')
-      setPropertyKey('')
-      setCanonicalPath('')
-      setDefaultValue('')
-      setDescription('')
-      setParentPropertyId('')
-      setIsRequired(false)
-      setKeyTouched(false)
-      setPathTouched(false)
-    } catch (err) {
-      setError(parseError(err, 'Property oluşturulamadı'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleDelete = async (item: PropertyDefinitionItem) => {
-    setBusy(true)
-    setError('')
-    try {
-      await api.deleteProperty(item.id)
-      await refreshProperties()
-      setNotice({ tone: 'success', message: `Property silindi: ${item.label}` })
-      if (parentPropertyId === item.id) setParentPropertyId('')
-    } catch (err) {
-      setError(parseError(err, 'Property silinemedi'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={node ? `${node.name} · Alanları Yönet` : 'Alanları Yönet'} size="wide">
-      <div className="space-y-5 p-6">
-        {node ? <div className="text-xs text-muted-foreground">{node.path}</div> : null}
-        {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="mb-3 text-sm font-medium text-foreground">Yeni Property Ekle</div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Label</label>
-              <input value={label} onChange={(e) => handleLabelChange(e.target.value)} className={inputClass} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Data Type</label>
-              <select
-                value={dataType}
-                onChange={(e) => {
-                  const nextType = e.target.value as PropertyDataType
-                  setDataType(nextType)
-                  if (nextType === 'object') setDefaultValue('')
-                }}
-                className={selectClass}
-              >
-                {DATA_TYPE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Property Key</label>
-              <input
-                value={propertyKey}
-                onChange={(e) => {
-                  setKeyTouched(true)
-                  setPropertyKey(e.target.value)
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Canonical Path</label>
-              <input
-                value={canonicalPath}
-                onChange={(e) => {
-                  setPathTouched(true)
-                  setCanonicalPath(e.target.value)
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Description</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} className={textareaClass} rows={3} />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Default Value</label>
-              <input
-                value={defaultValue}
-                onChange={(e) => setDefaultValue(e.target.value)}
-                className={inputClass}
-                disabled={dataType === 'object'}
-                placeholder={dataType === 'array' ? 'deger1;deger2;deger3' : 'Varsayılan değer'}
-              />
-              {dataType === 'array' ? (
-                <div className="text-xs text-muted-foreground">Array tipinde öğeleri `;` ile ayır.</div>
-              ) : null}
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Parent Property</label>
-              <select value={parentPropertyId} onChange={(e) => setParentPropertyId(e.target.value)} className={selectClass}>
-                <option value="">Parent yok</option>
-                {effectiveParents.map((item) => (
-                  <option key={item.id} value={item.id}>{item.label} · {item.canonical_path}</option>
-                ))}
-              </select>
-            </div>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
-              <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
-              Zorunlu alan
-            </label>
-          </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void handleCreate()}
-              disabled={busy || !node}
-              className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'linear-gradient(to right, var(--primary), var(--secondary))' }}
-            >
-              {busy ? 'Kaydediliyor...' : 'Property Ekle'}
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-sm font-medium text-foreground">Bu Node'da Tanımlı Property'ler ({nodeProperties.length})</div>
-          <div className="max-h-[380px] space-y-3 overflow-auto p-4">
-            {nodeProperties.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground">Bu node'da tanımlı property yok.</div>
-            ) : nodeProperties.map((item) => (
-              <div key={item.id} className="rounded-xl border border-border bg-background p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">{item.label}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{item.canonical_path}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{item.data_type}</span>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(item)}
-                      disabled={busy}
-                      className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      Sil
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                  <div><span className="font-medium text-foreground">Parent:</span> {parentLabel(item.parent_property_id)}</div>
-                  <div><span className="font-medium text-foreground">Parent Zinciri:</span> {parentChain(item)}</div>
-                  <div><span className="font-medium text-foreground">Default:</span> {item.default_value || '-'}</div>
-                  <div><span className="font-medium text-foreground">Required:</span> {item.is_required ? 'true' : 'false'}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
 export function ContentManagementPage() {
+  const navigate = useNavigate()
   const [notice, setNotice] = useState<NoticeState | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState('')
   const [curriculumTree, setCurriculumTree] = useState<CurriculumNodeItem[]>([])
-  const [properties, setProperties] = useState<PropertyDefinitionItem[]>([])
   const [templates, setTemplates] = useState<YamlTemplateItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2394,17 +2121,10 @@ export function ContentManagementPage() {
   const [treeCreatePrefilledFields, setTreeCreatePrefilledFields] = useState<SchemaFieldDraft[]>([])
   const [folderPromptUnite, setFolderPromptUnite] = useState<CurriculumNodeItem | null>(null)
   const [folderPromptBusy, setFolderPromptBusy] = useState(false)
-  const [propertyManagerNode, setPropertyManagerNode] = useState<CurriculumNodeItem | null>(null)
 
   const loadCurriculumTree = async () => {
     const rows = await api.getCurriculumTree()
     setCurriculumTree(rows)
-    return rows
-  }
-
-  const loadProperties = async () => {
-    const rows = await api.listProperties()
-    setProperties(rows)
     return rows
   }
 
@@ -2418,7 +2138,7 @@ export function ContentManagementPage() {
     void (async () => {
       setLoading(true)
       try {
-        await Promise.all([loadCurriculumTree(), loadProperties(), loadTemplates()])
+        await Promise.all([loadCurriculumTree(), loadTemplates()])
       } catch (error) {
         setNotice({ tone: 'error', message: parseError(error, 'İçerik yönetimi verileri yüklenemedi') })
       } finally {
@@ -2540,18 +2260,9 @@ export function ContentManagementPage() {
             fullHeight
             templates={templates}
             onAddTemplate={handleAddTemplate}
-            onManageProperties={(node) => setPropertyManagerNode(node)}
+            onManageProperties={(node) => navigate(`/content/fields/${node.id}`)}
           />
         )}
-
-        <NodePropertyManagerModal
-          open={propertyManagerNode !== null}
-          node={propertyManagerNode}
-          allProperties={properties}
-          onClose={() => setPropertyManagerNode(null)}
-          refreshProperties={loadProperties}
-          setNotice={setNotice}
-        />
 
         <TemplateFormModal
           open={treeCreateFolderId !== null}

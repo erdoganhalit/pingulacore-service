@@ -559,7 +559,7 @@ export function YamlCreatePage() {
       return
     }
     if (!yamlName.trim()) {
-      setNotice({ tone: 'error', message: 'YAML Name zorunlu.' })
+      setNotice({ tone: 'error', message: 'YAML İsmi zorunlu.' })
       return
     }
     setSubmitting(true)
@@ -610,7 +610,7 @@ export function YamlCreatePage() {
             <div className="rounded-2xl border border-border bg-background px-5 py-4 text-sm text-muted-foreground shadow-sm">
               <div className="flex items-center gap-2 font-medium text-foreground">
                 <BookOpen className="h-4 w-4" />
-                Template’den Instance
+                Template'den Instance
               </div>
               <div className="mt-1">Sınıf → Ders → Ünite → Template akışı ile YAML instance oluştur.</div>
             </div>
@@ -626,22 +626,22 @@ export function YamlCreatePage() {
         ) : (
           <div className="space-y-6">
             <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Metadata</h2>
+              <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Üst Veri</h2>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-foreground">YAML Name</label>
+                  <label className="text-sm font-medium text-foreground">YAML İsmi</label>
                   <input value={yamlName} onChange={(event) => setYamlName(event.target.value)} className={inputClass} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-foreground">YAML Description</label>
+                  <label className="text-sm font-medium text-foreground">YAML Açıklaması</label>
                   <textarea value={yamlDescription} onChange={(event) => setYamlDescription(event.target.value)} className={textareaClass} rows={3} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Created By</label>
+                  <label className="text-sm font-medium text-foreground">Oluşturan</label>
                   <input value={createdBy} onChange={(event) => setCreatedBy(event.target.value)} className={inputClass} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Status</label>
+                  <label className="text-sm font-medium text-foreground">Durum</label>
                   <select value={status} onChange={(event) => setStatus(event.target.value as 'draft' | 'final' | 'archived')} className={selectClass}>
                     <option value="draft">draft</option>
                     <option value="final">final</option>
@@ -746,7 +746,7 @@ export function YamlCreatePage() {
             {openedTemplate ? (
               <div className="rounded-2xl border border-border bg-card p-6">
                 <div className="mb-4">
-                  <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Property'leri</h2>
+                  <h2 className="text-lg text-foreground" style={{ fontFamily: 'var(--font-display)' }}>Template Özellikleri</h2>
                   <p className="text-sm text-muted-foreground">
                     {openedTemplate.title} · {openedTemplate.template_code} · {nodeById.get(openedTemplate.curriculum_folder_node_id)?.path ?? '-'}
                   </p>

@@ -40,12 +40,12 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
         style={{ background: 'linear-gradient(to right, var(--accent), var(--muted))' }}
       >
         <h3 className="text-lg" style={{ fontFamily: 'var(--font-display)' }}>
-          HTML Iterations
+          HTML İterasyonları
         </h3>
         {running && attempts.length === 0 && (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Waiting for first render...
+            İlk render bekleniyor...
           </span>
         )}
       </div>
@@ -70,7 +70,7 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
                   <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
                 )}
                 <span className="font-medium text-foreground">
-                  Iteration {entry.attempt}
+                  İterasyon {entry.attempt}
                   {entry.render ? `/${entry.render.max_attempts}` : ''}
                 </span>
                 <span
@@ -82,7 +82,7 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
                         : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {passed ? 'Passed' : failed ? 'Failed' : 'Evaluating...'}
+                  {passed ? 'Başarılı' : failed ? 'Başarısız' : 'Değerlendiriliyor...'}
                 </span>
               </div>
 
@@ -90,7 +90,7 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
               {imageUrl && (
                 <img
                   src={imageUrl}
-                  alt={`Iteration ${entry.attempt} render`}
+                  alt={`İterasyon ${entry.attempt} render`}
                   className="w-full rounded-lg border border-border"
                   style={{ maxWidth: 960 }}
                 />
@@ -100,14 +100,14 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
               {!entry.validation && entry.render && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Evaluating...
+                  Değerlendiriliyor...
                 </div>
               )}
 
               {/* Feedback */}
               {failed && entry.validation?.feedback && (
                 <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                  <span className="font-medium">Feedback:</span>{' '}
+                  <span className="font-medium">Geri Bildirim:</span>{' '}
                   {entry.validation.feedback}
                 </div>
               )}
@@ -136,7 +136,7 @@ export function HtmlIterationsPanel({ renders, validations, running = false }: P
         {waitingForNextRender && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Generating next iteration...
+            Sonraki iterasyon oluşturuluyor...
           </div>
         )}
 

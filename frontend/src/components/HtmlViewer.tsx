@@ -27,7 +27,7 @@ export function HtmlViewer({ html, title = 'HTML Çıktısı', fillHeight = fals
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border bg-primary/10 border-primary/30 hover:bg-primary/20 text-primary"
             >
               <Pencil className="w-3 h-3" />
-              Edit Manually
+              Manuel Düzenle
             </button>
           )}
           <button
@@ -40,7 +40,7 @@ export function HtmlViewer({ html, title = 'HTML Çıktısı', fillHeight = fals
             }`}
           >
             <Code className="w-3 h-3" />
-            Raw
+            Ham
           </button>
           <button
             type="button"
@@ -52,7 +52,7 @@ export function HtmlViewer({ html, title = 'HTML Çıktısı', fillHeight = fals
             }`}
           >
             <Eye className="w-3 h-3" />
-            Rendered
+            Önizleme
           </button>
         </div>
       </div>
@@ -67,7 +67,7 @@ export function HtmlViewer({ html, title = 'HTML Çıktısı', fillHeight = fals
             className={`w-full border-0 bg-white ${fillHeight ? 'h-full' : ''}`}
             style={fillHeight ? { minHeight: '320px' } : { minHeight: '320px' }}
             sandbox="allow-same-origin"
-            title="HTML Preview"
+            title="HTML Önizleme"
             srcDoc={rewritten}
           />
         )}

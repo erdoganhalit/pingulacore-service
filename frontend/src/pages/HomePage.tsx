@@ -17,7 +17,7 @@ const features = [
   },
   {
     Icon: Bot,
-    title: 'Standalone Agents',
+    title: 'Bağımsız Agent\'lar',
     desc: 'Bireysel agentları bağımsız olarak test et ve sonuçları incele.',
     to: '/agents',
   },

@@ -311,9 +311,9 @@ export function SubPipelinesPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-            Sub-Pipelines
+            Sub-Pipeline'lar
           </h1>
-          <p className="text-muted-foreground">Individual pipeline stages for granular control</p>
+          <p className="text-muted-foreground">İnce kontrol için bağımsız pipeline aşamaları</p>
         </div>
 
         {/* Error */}
@@ -386,7 +386,7 @@ export function SubPipelinesPage() {
                   <div className="space-y-2">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      Question Retry
+                      Question Yeniden Deneme
                     </label>
                     <input
                       type="number"
@@ -402,7 +402,7 @@ export function SubPipelinesPage() {
                 <div className="flex gap-3 flex-wrap">
                   <button type="button" onClick={() => void refreshAll()}
                     className={btnSecondary} style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
-                    <RefreshCw className="w-4 h-4" /> Refresh now
+                    <RefreshCw className="w-4 h-4" /> Şimdi Yenile
                   </button>
                   <button type="button" onClick={() => void refreshArtifacts()}
                     className={btnSecondary} style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
@@ -415,13 +415,13 @@ export function SubPipelinesPage() {
                   </button>
                 </div>
 
-                <QuestionOutputDisplay data={yamlQuestionOutput} title="Question Output" />
+                <QuestionOutputDisplay data={yamlQuestionOutput} title="Soru Çıktısı" />
 
                 {stepYaml.id && (
                   <>
-                    <PipelineLogsPanel title="Step-1 Event Log" logs={stepYaml.logs}
+                    <PipelineLogsPanel title="Adım-1 Olay Logu" logs={stepYaml.logs}
                       onRefresh={() => refreshStep('yaml', stepYaml.id)} />
-                    <AgentRunsPanel title="Step-1 Agent Runs" links={stepYaml.links}
+                    <AgentRunsPanel title="Adım-1 Agent Run'ları" links={stepYaml.links}
                       onRefresh={() => refreshStep('yaml', stepYaml.id)} />
                   </>
                 )}
@@ -453,7 +453,7 @@ export function SubPipelinesPage() {
                   <div className="space-y-2">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      Layout Retry
+                      Layout Yeniden Deneme
                     </label>
                     <input
                       type="number"
@@ -469,7 +469,7 @@ export function SubPipelinesPage() {
                 <div className="flex gap-3 flex-wrap">
                   <button type="button" onClick={() => void refreshAll()}
                     className={btnSecondary} style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
-                    <RefreshCw className="w-4 h-4" /> Refresh now
+                    <RefreshCw className="w-4 h-4" /> Şimdi Yenile
                   </button>
                 </div>
                 <JsonPanel
@@ -483,13 +483,13 @@ export function SubPipelinesPage() {
                   <Play className="w-4 h-4" fill="currentColor" /> Çalıştır
                 </button>
 
-                <LayoutOutputDisplay data={questionLayoutOutput} title="Layout Output" />
+                <LayoutOutputDisplay data={questionLayoutOutput} title="Layout Çıktısı" />
 
                 {stepLayout.id && (
                   <>
-                    <PipelineLogsPanel title="Step-2 Event Log" logs={stepLayout.logs}
+                    <PipelineLogsPanel title="Adım-2 Olay Logu" logs={stepLayout.logs}
                       onRefresh={() => refreshStep('layout', stepLayout.id)} />
-                    <AgentRunsPanel title="Step-2 Agent Runs" links={stepLayout.links}
+                    <AgentRunsPanel title="Adım-2 Agent Run'ları" links={stepLayout.links}
                       onRefresh={() => refreshStep('layout', stepLayout.id)} />
                   </>
                 )}
@@ -539,7 +539,7 @@ export function SubPipelinesPage() {
                   <div className="space-y-2">
                     <label className={labelClass}>
                       <Hash className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-                      HTML Retry
+                      HTML Yeniden Deneme
                     </label>
                     <input
                       type="number"
@@ -555,7 +555,7 @@ export function SubPipelinesPage() {
                 <div className="flex gap-3 flex-wrap">
                   <button type="button" onClick={() => void refreshAll()}
                     className={btnSecondary} style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
-                    <RefreshCw className="w-4 h-4" /> Refresh now
+                    <RefreshCw className="w-4 h-4" /> Şimdi Yenile
                   </button>
                 </div>
                 <JsonPanel
@@ -578,8 +578,8 @@ export function SubPipelinesPage() {
 
 {htmlOutput && (
                   <>
-                    <HtmlViewer html={htmlOutput} title="Sub-Pipeline HTML Preview" onEditClick={() => setEditorOpen(true)} />
-                    <Modal open={editorOpen} onClose={() => setEditorOpen(false)} size="full" title="HTML Layout Editor">
+                    <HtmlViewer html={htmlOutput} title="Sub-Pipeline HTML Önizleme" onEditClick={() => setEditorOpen(true)} />
+                    <Modal open={editorOpen} onClose={() => setEditorOpen(false)} size="full" title="HTML Layout Düzenleyici">
                       <HtmlLayoutEditor
                         html={htmlOutput}
                         onSave={(edited) => { setHtmlOverride(edited); setEditorOpen(false) }}
@@ -590,10 +590,10 @@ export function SubPipelinesPage() {
                 )}
                 {renderedImageUrl && (
                   <div className="p-4 border border-border rounded-xl bg-white">
-                    <h4 className="text-sm font-medium text-foreground mb-3">Final Render PNG</h4>
+                    <h4 className="text-sm font-medium text-foreground mb-3">Nihai Render PNG</h4>
                     <img
                       src={renderedImageUrl}
-                      alt="Final rendered question"
+                      alt="Nihai render edilmiş soru"
                       className="w-full rounded border border-border"
                       style={{ maxWidth: 960 }}
                     />
@@ -602,9 +602,9 @@ export function SubPipelinesPage() {
 
                 {stepHtml.id && (
                   <>
-                    <PipelineLogsPanel title="Step-3 Event Log" logs={stepHtml.logs}
+                    <PipelineLogsPanel title="Adım-3 Olay Logu" logs={stepHtml.logs}
                       onRefresh={() => refreshStep('html', stepHtml.id)} />
-                    <AgentRunsPanel title="Step-3 Agent Runs" links={stepHtml.links}
+                    <AgentRunsPanel title="Adım-3 Agent Run'ları" links={stepHtml.links}
                       onRefresh={() => refreshStep('html', stepHtml.id)} />
                   </>
                 )}
@@ -612,7 +612,7 @@ export function SubPipelinesPage() {
             )}
           </div>
         </div>
-        <LogStreamPanel lines={lines} connected={connected} done={done} title="Sub-Pipeline Logs" active={active} />
+        <LogStreamPanel lines={lines} connected={connected} done={done} title="Sub-Pipeline Logları" active={active} />
       </motion.div>
     </div>
   )
